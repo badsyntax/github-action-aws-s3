@@ -11,10 +11,10 @@ inputs:
   action:
     required: true
     description: 'The action to perform. Accepted values: sync|clean'
-  srcDir:
+  srcGlob:
     required: false
     default: ''
-    description: 'The source directory to sync to S3 (if using the sync action)'
+    description: 'Glob pattern for source files to sync to S3 (if using the sync action)'
   awsRegion:
     require: true
     description: 'The AWS region. For example: us-east-1'
@@ -26,6 +26,14 @@ inputs:
     require: false
     default: ''
     description: "Glob pattern to strip extension (f using the sync action). For example: '**/**.html'"
+  cacheControl:
+    require: false
+    default: ''
+    description: 'Cache-control headers. For example: public,max-age=31536000,immutable'
+  acl:
+    required: false
+    default: ''
+    description: '"authenticated-read" | "aws-exec-read" | "bucket-owner-full-control" | "bucket-owner-read" | "private" | "public-read" | "public-read-write"'
 runs:
   using: 'node16'
   main: 'dist/index.js'

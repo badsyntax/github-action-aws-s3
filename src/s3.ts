@@ -9,11 +9,14 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
   PutObjectCommandOutput,
+  PutObjectRequest,
   S3Client,
 } from '@aws-sdk/client-s3';
 import glob from '@actions/glob';
 import { info } from '@actions/core';
 import minimatch from 'minimatch';
+
+import { workspace } from './github.js';
 
 export type S3ObjectPrefix = string;
 
@@ -75,7 +78,8 @@ async function uploadFile(
   key: string,
   absoluteFilePath: string,
   cacheControl: string,
-  contentType: string
+  contentType: string,
+  acl: PutObjectRequest['ACL']
 ): Promise<PutObjectCommandOutput> {
   return client.send(
     new PutObjectCommand({
@@ -83,6 +87,7 @@ async function uploadFile(
       Key: key,
       CacheControl: cacheControl,
       ContentType: contentType,
+      ACL: acl,
       Body: fs.createReadStream(absoluteFilePath),
     })
   );
@@ -101,10 +106,11 @@ export async function maybeUploadFile(
   client: S3Client,
   s3BucketName: string,
   absoluteFilePath: string,
-  key: string
+  key: string,
+  cacheControl: string,
+  acl: PutObjectRequest['ACL']
 ): Promise<boolean> {
   const extension = path.extname(absoluteFilePath).toLowerCase();
-  const cacheControl = getCacheControlForExtension(extension);
   const contentType = getContentTypeForExtension(extension);
   const eTag = getETag(absoluteFilePath);
   const metadata = await getObjectMetadata(client, s3BucketName, key);
@@ -122,18 +128,18 @@ export async function maybeUploadFile(
       key,
       absoluteFilePath,
       cacheControl,
-      contentType
+      contentType,
+      acl
     );
   }
   return shouldUploadFile;
 }
 
-const trailingSlashRegex = /\/$/;
-
-async function getFilesFromSrcDir(srcDir: string): Promise<string[]> {
-  const sanitisedSrcDir = srcDir.replace(trailingSlashRegex, '');
-  const patterns = [`${sanitisedSrcDir}/**`];
-  const globber = await glob.create(patterns.join('\n'), {
+async function getFilesFromSrcGlob(srcGlob: string): Promise<string[]> {
+  if (srcGlob.trim() === '') {
+    throw new Error('srcGlob must not be empty');
+  }
+  const globber = await glob.create(srcGlob, {
     matchDirectories: false,
   });
   return globber.glob();
@@ -142,15 +148,17 @@ async function getFilesFromSrcDir(srcDir: string): Promise<string[]> {
 export async function syncFilesToS3(
   client: S3Client,
   s3BucketName: string,
-  srcDir: string,
+  srcGlob: string,
   prefix: S3ObjectPrefix | string,
-  stripExtensionGlob: string
+  stripExtensionGlob: string,
+  cacheControl: string,
+  acl: PutObjectRequest['ACL']
 ): Promise<string[]> {
-  if (srcDir.trim() === '') {
-    throw new Error('srcDir must not be empty');
+  if (!workspace) {
+    throw new Error('GITHUB_WORKSPACE is not defined');
   }
-  const files = await getFilesFromSrcDir(srcDir);
-  const rootDir = path.resolve(srcDir);
+  const rootDir = workspace;
+  const files = await getFilesFromSrcGlob(srcGlob);
   const uploadedKeys: string[] = [];
   for (const file of files) {
     const key = getObjectKeyFromFilePath(
@@ -159,7 +167,14 @@ export async function syncFilesToS3(
       prefix,
       stripExtensionGlob
     );
-    const uploaded = await maybeUploadFile(client, s3BucketName, file, key);
+    const uploaded = await maybeUploadFile(
+      client,
+      s3BucketName,
+      file,
+      key,
+      cacheControl,
+      acl
+    );
     if (uploaded) {
       info(`Synced ${key}`);
       uploadedKeys.push(key);
@@ -167,7 +182,9 @@ export async function syncFilesToS3(
       info(`Skipped ${key} (no change)`);
     }
   }
-  info(`Synced ${uploadedKeys.length} files`);
+  info(
+    `Synced ${uploadedKeys.length} files with cache-control: ${cacheControl}`
+  );
   return uploadedKeys;
 }
 

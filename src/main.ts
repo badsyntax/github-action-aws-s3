@@ -19,9 +19,11 @@ export async function run(): Promise<void> {
       const syncedFiles = await syncFilesToS3(
         s3Client,
         inputs.bucket,
-        inputs.srcDir,
+        inputs.srcGlob,
         inputs.prefix,
-        inputs.stripExtensionGlob
+        inputs.stripExtensionGlob,
+        inputs.cacheControl,
+        inputs.acl
       );
       logOutputParameters(syncedFiles);
     } else if (inputs.action === 'clean') {

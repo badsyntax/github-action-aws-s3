@@ -28,19 +28,33 @@ jobs:
           aws-region: us-east-1
 
       - uses: ./
-        name: Sync to S3
-        id: sync-s3
+        name: Sync HTML files to S3
+        id: sync-html-s3
         with:
           bucket: 'richardwillis.info-example-bucket-us-east-1'
           action: 'sync'
-          srcDir: './out'
+          srcGlob: './out/**/*.html'
           awsRegion: 'us-east-1'
           prefix: 'preview'
           stripExtensionGlob: '**/**.html'
+          cacheControl: 'public,max-age=0,s-maxage=31536000,must-revalidate'
+
+      - uses: ./
+        name: Sync immutable files to S3
+        id: sync-immutable-s3
+        with:
+          bucket: 'richardwillis.info-example-bucket-us-east-1'
+          action: 'sync'
+          srcGlob: './out/css/**'
+          awsRegion: 'us-east-1'
+          prefix: 'preview'
+          cacheControl: 'public,max-age=31536000,immutable'
 
       - name: Output Synced Files
         run: |
-          echo "Synced Files: $S3SyncedFiles"
+          echo "Synced HTML Files: $S3SyncedHTMLFiles"
+          echo "Synced Immutable Files: $S3SyncedImmutableFiles"
         env:
           # Use outputs from the S3 step
-          S3SyncedFiles: ${{ steps.sync-s3.outputs.S3SyncedFiles }}
+          S3SyncedHTMLFiles: ${{ steps.sync-html-s3.outputs.S3SyncedFiles }}
+          S3SyncedImmutableFiles: ${{ steps.sync-immutable-s3.outputs.S3SyncedFiles }}

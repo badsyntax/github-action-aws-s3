@@ -42920,6 +42920,7 @@ var core = __nccwpck_require__(2186);
 var dist_cjs = __nccwpck_require__(9250);
 ;// CONCATENATED MODULE: ./lib/github.js
 
+const workspace = process.env.GITHUB_WORKSPACE;
 function logOutputParameters(syncedFiles) {
     (0,core.info)(`::set-output name=S3SyncedFiles::${syncedFiles.join(',')}`);
 }
@@ -42935,7 +42936,7 @@ function getInputs() {
         required: true,
         trimWhitespace: true,
     });
-    const srcDir = (0,core.getInput)('srcDir', {
+    const srcGlob = (0,core.getInput)('srcGlob', {
         required: true,
         trimWhitespace: true,
     });
@@ -42951,13 +42952,23 @@ function getInputs() {
         required: false,
         trimWhitespace: true,
     });
+    const cacheControl = (0,core.getInput)('cacheControl', {
+        required: false,
+        trimWhitespace: true,
+    });
+    const acl = (0,core.getInput)('acl', {
+        required: false,
+        trimWhitespace: true,
+    });
     return {
         bucket,
         region,
-        srcDir,
+        srcGlob,
         prefix,
         stripExtensionGlob,
         action,
+        cacheControl,
+        acl,
     };
 }
 
@@ -42974,6 +42985,7 @@ var glob = __nccwpck_require__(8090);
 // EXTERNAL MODULE: ./node_modules/minimatch/minimatch.js
 var minimatch = __nccwpck_require__(3973);
 ;// CONCATENATED MODULE: ./lib/s3.js
+
 
 
 
@@ -43020,12 +43032,13 @@ function getContentTypeForExtension(extension) {
     }
     return contentType;
 }
-async function uploadFile(client, s3BucketName, key, absoluteFilePath, cacheControl, contentType) {
+async function uploadFile(client, s3BucketName, key, absoluteFilePath, cacheControl, contentType, acl) {
     return client.send(new dist_cjs.PutObjectCommand({
         Bucket: s3BucketName,
         Key: key,
         CacheControl: cacheControl,
         ContentType: contentType,
+        ACL: acl,
         Body: external_node_fs_namespaceObject.createReadStream(absoluteFilePath),
     }));
 }
@@ -43034,9 +43047,8 @@ function getETag(absoluteFilePath) {
     const base64ETag = Buffer.from(external_node_crypto_namespaceObject.createHash('md5').update(fileContents).digest('hex'), 'base64').toString('base64');
     return JSON.stringify(base64ETag);
 }
-async function maybeUploadFile(client, s3BucketName, absoluteFilePath, key) {
+async function maybeUploadFile(client, s3BucketName, absoluteFilePath, key, cacheControl, acl) {
     const extension = external_node_path_namespaceObject.extname(absoluteFilePath).toLowerCase();
-    const cacheControl = getCacheControlForExtension(extension);
     const contentType = getContentTypeForExtension(extension);
     const eTag = getETag(absoluteFilePath);
     const metadata = await getObjectMetadata(client, s3BucketName, key);
@@ -43045,29 +43057,29 @@ async function maybeUploadFile(client, s3BucketName, absoluteFilePath, key) {
         metadata.ContentType !== contentType ||
         metadata.ETag !== eTag;
     if (shouldUploadFile) {
-        await uploadFile(client, s3BucketName, key, absoluteFilePath, cacheControl, contentType);
+        await uploadFile(client, s3BucketName, key, absoluteFilePath, cacheControl, contentType, acl);
     }
     return shouldUploadFile;
 }
-const trailingSlashRegex = /\/$/;
-async function getFilesFromSrcDir(srcDir) {
-    const sanitisedSrcDir = srcDir.replace(trailingSlashRegex, '');
-    const patterns = [`${sanitisedSrcDir}/**`];
-    const globber = await glob.create(patterns.join('\n'), {
+async function getFilesFromSrcGlob(srcGlob) {
+    if (srcGlob.trim() === '') {
+        throw new Error('srcGlob must not be empty');
+    }
+    const globber = await glob.create(srcGlob, {
         matchDirectories: false,
     });
     return globber.glob();
 }
-async function syncFilesToS3(client, s3BucketName, srcDir, prefix, stripExtensionGlob) {
-    if (srcDir.trim() === '') {
-        throw new Error('srcDir must not be empty');
+async function syncFilesToS3(client, s3BucketName, srcGlob, prefix, stripExtensionGlob, cacheControl, acl) {
+    if (!workspace) {
+        throw new Error('GITHUB_WORKSPACE is not defined');
     }
-    const files = await getFilesFromSrcDir(srcDir);
-    const rootDir = external_node_path_namespaceObject.resolve(srcDir);
+    const rootDir = workspace;
+    const files = await getFilesFromSrcGlob(srcGlob);
     const uploadedKeys = [];
     for (const file of files) {
         const key = getObjectKeyFromFilePath(rootDir, file, prefix, stripExtensionGlob);
-        const uploaded = await maybeUploadFile(client, s3BucketName, file, key);
+        const uploaded = await maybeUploadFile(client, s3BucketName, file, key, cacheControl, acl);
         if (uploaded) {
             (0,core.info)(`Synced ${key}`);
             uploadedKeys.push(key);
@@ -43076,7 +43088,7 @@ async function syncFilesToS3(client, s3BucketName, srcDir, prefix, stripExtensio
             (0,core.info)(`Skipped ${key} (no change)`);
         }
     }
-    (0,core.info)(`Synced ${uploadedKeys.length} files`);
+    (0,core.info)(`Synced ${uploadedKeys.length} files ${uploadedKeys.length ? `with cache-control: ${cacheControl}` : ''}`);
     return uploadedKeys;
 }
 async function emptyS3Directory(client, s3BucketName, prefix, initialObjectsCleaned = 0) {
@@ -43113,7 +43125,7 @@ async function run() {
             region: inputs.region,
         });
         if (inputs.action == 'sync') {
-            const syncedFiles = await syncFilesToS3(s3Client, inputs.bucket, inputs.srcDir, inputs.prefix, inputs.stripExtensionGlob);
+            const syncedFiles = await syncFilesToS3(s3Client, inputs.bucket, inputs.srcGlob, inputs.prefix, inputs.stripExtensionGlob, inputs.cacheControl, inputs.acl);
             logOutputParameters(syncedFiles);
         }
         else if (inputs.action === 'clean') {
