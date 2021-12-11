@@ -47,6 +47,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -70,11 +71,9 @@ jobs:
       - name: Output Synced Files
         run: |
           echo "Synced HTML Files: $S3SyncedHTMLFiles"
-          echo "Synced Immutable Files: $S3SyncedImmutableFiles"
         env:
           # Use outputs from previous sync steps
           S3SyncedHTMLFiles: ${{ steps.sync-html-s3.outputs.S3SyncedFiles }}
-          S3SyncedImmutableFiles: ${{ steps.sync-immutable-s3.outputs.S3SyncedFiles }}
 ```
 
 ## Related Projects
