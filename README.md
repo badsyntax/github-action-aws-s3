@@ -10,6 +10,8 @@ This Action compares the md5 hash against the uploaded file, and if there's a ma
 
 ## Getting Started
 
+Please read: <https://github.com/aws-actions/configure-aws-credentials#credentials>
+
 ```yml
 name: 'Sync S3'
 
