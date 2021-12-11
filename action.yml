@@ -1,0 +1,30 @@
+name: 'AWS S3'
+description: 'Sync files to S3'
+author: 'Richard Willis <willis.rh@gmail.com>'
+branding:
+  icon: 'upload-cloud'
+  color: 'gray-dark'
+inputs:
+  bucket:
+    required: true
+    description: 'The name of the S3 bucket'
+  action:
+    required: true
+    description: 'The action to perform. Accepted values: sync|clean'
+  srcDir:
+    required: true
+    description: 'The source directory to sync to S3'
+  awsRegion:
+    require: true
+    description: 'The AWS region. For example: us-east-1'
+  prefix:
+    require: false
+    default: ''
+    description: "The prefix for the uploaded object. For example: 'custom/folder'"
+  stripExtensionGlob:
+    require: false
+    default: ''
+    description: "Glob pattern to strip extension. For example: '**/**.html'"
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
