@@ -1,5 +1,6 @@
 # AWS S3 GitHub Action
 
+[![Build & Test](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/test.yml/badge.svg)](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/test.yml)
 [![Sync S3](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/sync-s3.yml/badge.svg)](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/sync-s3.yml)
 [![CodeQL](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/codeql-analysis.yml)
 
