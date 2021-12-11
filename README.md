@@ -8,7 +8,7 @@ An intelligent S3 sync action that syncs based on contents hash.
 
 The `aws cli` syncs based on file modified times or file size. These two approaches cause problems when syncing CI or when build hashes might change but file size is unchanged.
 
-This Action compares the md5 hash against the uploaded file, and if there's a match it will not sync the file.
+This Action compares the md5 hash against the uploaded file, and if there's a match it will not sync the file. It also provides other feature over using the `aws cli`.
 
 ## Features
 
