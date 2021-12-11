@@ -2,7 +2,7 @@
 
 [![Sync S3](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/sync-s3.yml/badge.svg)](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/sync-s3.yml)
 
-An intelligent S3 sync action that syncs based on contents hash.
+A GitHub Action to sync files to S3 based on contents hash.
 
 ## Motivation
 
