@@ -6,7 +6,7 @@ A GitHub Action to sync files to S3 based on contents hash.
 
 ## Motivation
 
-The `aws cli` syncs files based on file modified times or file size. This approach can cause problems when syncing CI or when build hashes might change but file size is unchanged.
+The `aws cli` syncs files based on file modified times or file size. This approach is not ideal when syncing in CI or when build hashes might change but file size is unchanged.
 
 This Action compares the md5 hash against the uploaded file, and if there's a match it will not sync the file. It also provides additional feature over the `aws cli`.
 
