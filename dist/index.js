@@ -43017,14 +43017,6 @@ function getObjectKeyFromFilePath(rootDir, absoluteFilePath, prefix, stripExtens
     }
     return extensionLessFile + ext;
 }
-function getCacheControlForExtension(extension) {
-    switch (extension) {
-        case '.html':
-            return 'public,max-age=0,s-maxage=31536000,must-revalidate';
-        default:
-            return 'public,max-age=31536000,immutable';
-    }
-}
 function getContentTypeForExtension(extension) {
     const contentType = mime_types.lookup(extension);
     if (contentType === false) {
@@ -43088,7 +43080,7 @@ async function syncFilesToS3(client, s3BucketName, srcGlob, prefix, stripExtensi
             (0,core.info)(`Skipped ${key} (no change)`);
         }
     }
-    (0,core.info)(`Synced ${uploadedKeys.length} files ${uploadedKeys.length ? `with cache-control: ${cacheControl}` : ''}`);
+    (0,core.info)(`Synced ${uploadedKeys.length} files with cache-control: ${cacheControl}`);
     return uploadedKeys;
 }
 async function emptyS3Directory(client, s3BucketName, prefix, initialObjectsCleaned = 0) {
