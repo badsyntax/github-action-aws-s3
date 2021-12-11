@@ -10,6 +10,14 @@ The aws cli syncs based on modified times or file size. These two approaches cau
 
 This Action compares the md5 hash against the uploaded file, and if there's a match it will not sync the file.
 
+## Features
+
+- Sync based on contents hash
+- Supports prefixes
+- Supports cleaning an object path
+- Custom cache-control headers
+- Custom ACL
+
 ## Getting Started
 
 Please read: <https://github.com/aws-actions/configure-aws-credentials#credentials>
@@ -42,22 +50,36 @@ jobs:
           aws-region: us-east-1
 
       - uses: badsyntax/github-action-aws-s3@v0.0.1
-        name: Sync to S3
-        id: sync-s3
+        name: Sync HTML files to S3
+        id: sync-html-s3
         with:
-          bucket: 'example-bucket-us-east-1'
+          bucket: 'richardwillis.info-example-bucket-us-east-1'
           action: 'sync' # sync|clean
-          srcDir: './out' # required only if action is sync
+          srcGlob: './out/**/*.html' # required only if action is sync
           awsRegion: 'us-east-1'
-          prefix: 'custom/folder'
+          prefix: 'preview'
           stripExtensionGlob: '**/**.html'
+          cacheControl: 'public,max-age=0,s-maxage=31536000,must-revalidate'
+
+      - uses: badsyntax/github-action-aws-s3@v0.0.1
+        name: Sync immutable files to S3
+        id: sync-immutable-s3
+        with:
+          bucket: 'richardwillis.info-example-bucket-us-east-1'
+          action: 'sync' # sync|clean
+          srcGlob: './out/css/**' # required only if action is sync
+          awsRegion: 'us-east-1'
+          prefix: 'preview'
+          cacheControl: 'public,max-age=31536000,immutable'
 
       - name: Output Synced Files
         run: |
-          echo "Synced Files: $S3SyncedFiles"
+          echo "Synced HTML Files: $S3SyncedHTMLFiles"
+          echo "Synced Immutable Files: $S3SyncedImmutableFiles"
         env:
-          # Use outputs from the S3 step
-          S3SyncedFiles: ${{ steps.sync-s3.outputs.S3SyncedFiles }}
+          # Use outputs from previous sync steps
+          S3SyncedHTMLFiles: ${{ steps.sync-html-s3.outputs.S3SyncedFiles }}
+          S3SyncedImmutableFiles: ${{ steps.sync-immutable-s3.outputs.S3SyncedFiles }}
 ```
 
 ## Debugging
