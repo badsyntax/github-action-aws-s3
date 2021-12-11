@@ -174,8 +174,9 @@ export async function syncFilesToS3(
 export async function emptyS3Directory(
   client: S3Client,
   s3BucketName: string,
-  prefix: string
-): Promise<void> {
+  prefix: string,
+  initialObjectsCleaned = 0
+): Promise<number> {
   const objects = await client.send(
     new ListObjectsV2Command({
       Bucket: s3BucketName,
@@ -184,7 +185,7 @@ export async function emptyS3Directory(
   );
 
   if (!objects.Contents?.length) {
-    return;
+    return initialObjectsCleaned;
   }
 
   await client.send(
@@ -194,7 +195,16 @@ export async function emptyS3Directory(
     })
   );
 
+  const totalObjectsCleaned = initialObjectsCleaned + objects.Contents.length;
+
   if (objects.IsTruncated) {
-    return await emptyS3Directory(client, s3BucketName, prefix);
+    return await emptyS3Directory(
+      client,
+      s3BucketName,
+      prefix,
+      totalObjectsCleaned
+    );
   }
+
+  return totalObjectsCleaned;
 }

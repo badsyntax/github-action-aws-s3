@@ -1,4 +1,4 @@
-import { debug, setFailed } from '@actions/core';
+import { debug, info, setFailed } from '@actions/core';
 import { S3Client } from '@aws-sdk/client-s3';
 
 import { logOutputParameters } from './github.js';
@@ -25,7 +25,14 @@ export async function run(): Promise<void> {
       );
       logOutputParameters(syncedFiles);
     } else if (inputs.action === 'clean') {
-      await emptyS3Directory(s3Client, inputs.bucket, inputs.prefix);
+      const totalObjectsCleaned = await emptyS3Directory(
+        s3Client,
+        inputs.bucket,
+        inputs.prefix
+      );
+      info(
+        `Cleaned ${totalObjectsCleaned} from ${inputs.bucket}/${inputs.prefix}`
+      );
     }
   } catch (error) {
     if (error instanceof Error) {
