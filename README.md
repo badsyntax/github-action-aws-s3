@@ -50,11 +50,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
+      - uses: badsyntax/github-action-aws-cloudformation@30e8484d108a13d803aa449c1ec1bd6aa4c932ff
+        name: Update CloudFormation Stack
+        id: update-stack
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          stackName: 'example-cloudformation-stack'
+          template: './cloudformation/s3bucket-example.yml'
+          applyChangeSet: ${{ github.event_name != 'repository_dispatch' }}
+          awsRegion: 'us-east-1'
+          parameters: 'S3BucketName=rexample-bucket-us-east-1&S3AllowedOrigins=https://example.com'
+
       - uses: badsyntax/github-action-aws-s3@v0.0.1
         name: Sync HTML files to S3
         id: sync-html-s3
         with:
-          bucket: 'richardwillis.info-example-bucket-us-east-1'
+          bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync' # sync|clean
           srcGlob: './out/**/*.html' # required only if action is sync
           awsRegion: 'us-east-1'
@@ -66,7 +77,7 @@ jobs:
         name: Sync immutable files to S3
         id: sync-immutable-s3
         with:
-          bucket: 'richardwillis.info-example-bucket-us-east-1'
+          bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync' # sync|clean
           srcGlob: './out/css/**' # required only if action is sync
           awsRegion: 'us-east-1'
