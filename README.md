@@ -1,5 +1,13 @@
 # AWS S3 GitHub Action
 
+An intelligent S3 sync action that syncs purely based on contents hash.
+
+## Motivation
+
+The aws cli syncs based on modified times or file size. These two approaches causes problems when syncing from different environments like in CI, or when build hashes might change but the file size is unchanged.
+
+This Action compares the md5 hash against the uploaded file, and if there's a match it will not sync the file.
+
 ## Getting Started
 
 ```yml
@@ -34,11 +42,11 @@ jobs:
         id: sync-s3
         with:
           bucket: 'example-bucket-us-east-1'
-          action: 'sync'
-          srcDir: './out'
+          action: 'sync' # sync|clean
+          srcDir: './out' # required only if action is sync
           awsRegion: 'us-east-1'
           prefix: 'custom/folder'
-          stripExtensionGlob: '**/**.html'
+          stripExtensionGlob: '**/**.html' # required only if action is sync
 
       - name: Output Synced Files
         run: |
@@ -47,3 +55,13 @@ jobs:
           # Use outputs from the S3 step
           S3SyncedFiles: ${{ steps.sync-s3.outputs.S3SyncedFiles }}
 ```
+
+## Debugging
+
+Check the Action output for logs.
+
+If you need to see more verbose logs you can set `ACTIONS_STEP_DEBUG` to `true` as an Action Secret.
+
+## License
+
+See [LICENSE.md](./LICENSE.md).
