@@ -13,11 +13,13 @@ This Action compares the md5 hash against the uploaded file, and if there's a ma
 ## Features
 
 - Sync based on contents hash
-- Supports prefixes
-- Supports cleaning an object path
+- Bucket prefixes
+- Clean an object path (remove a "directory")
 - Custom cache-control headers
+- Glob path patterns
 - Custom ACL
-- Strip extension
+- Automatic content-type detection
+- Strip extension from filename
 
 ## Getting Started
 
