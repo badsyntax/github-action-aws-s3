@@ -17,6 +17,7 @@ This Action compares the md5 hash against the uploaded file, and if there's a ma
 - Supports cleaning an object path
 - Custom cache-control headers
 - Custom ACL
+- Strip extension
 
 ## Getting Started
 
