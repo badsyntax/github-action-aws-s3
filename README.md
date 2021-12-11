@@ -48,7 +48,7 @@ jobs:
           srcDir: './out' # required only if action is sync
           awsRegion: 'us-east-1'
           prefix: 'custom/folder'
-          stripExtensionGlob: '**/**.html' # required only if action is sync
+          stripExtensionGlob: '**/**.html'
 
       - name: Output Synced Files
         run: |
