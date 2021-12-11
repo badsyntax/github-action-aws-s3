@@ -54,17 +54,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - uses: badsyntax/github-action-aws-cloudformation@30e8484d108a13d803aa449c1ec1bd6aa4c932ff
-        name: Update CloudFormation Stack
-        id: update-stack
-        with:
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          stackName: 'example-cloudformation-stack'
-          template: './cloudformation/s3bucket-example.yml'
-          applyChangeSet: ${{ github.event_name != 'repository_dispatch' }}
-          awsRegion: 'us-east-1'
-          parameters: 'S3BucketName=rexample-bucket-us-east-1&S3AllowedOrigins=https://example.com'
-
       - uses: badsyntax/github-action-aws-s3@v0.0.1
         name: Sync HTML files to S3
         id: sync-html-s3
@@ -78,18 +67,6 @@ jobs:
           stripExtensionGlob: '**/**.html'
           cacheControl: 'public,max-age=0,s-maxage=31536000,must-revalidate'
 
-      - uses: badsyntax/github-action-aws-s3@v0.0.1
-        name: Sync immutable files to S3
-        id: sync-immutable-s3
-        with:
-          bucket: ${{ steps.update-stack.outputs.S3BucketName }}
-          action: 'sync' # sync|clean
-          srcDir: './out' # required only if action is sync
-          filesGlob: 'css/**' # required only if action is sync
-          awsRegion: 'us-east-1'
-          prefix: 'preview'
-          cacheControl: 'public,max-age=31536000,immutable'
-
       - name: Output Synced Files
         run: |
           echo "Synced HTML Files: $S3SyncedHTMLFiles"
@@ -99,6 +76,11 @@ jobs:
           S3SyncedHTMLFiles: ${{ steps.sync-html-s3.outputs.S3SyncedFiles }}
           S3SyncedImmutableFiles: ${{ steps.sync-immutable-s3.outputs.S3SyncedFiles }}
 ```
+
+## Related Projects
+
+- [github-action-aws-cloudfront](https://github.com/badsyntax/github-action-aws-cloudfront)
+- [github-action-aws-cloudformation](https://github.com/badsyntax/github-action-aws-cloudformation)
 
 ## Debugging
 
