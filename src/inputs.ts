@@ -11,7 +11,7 @@ export function getInputs() {
     trimWhitespace: true,
   });
 
-  const srcDir = getInput('srcDir', {
+  const srcGlob = getInput('srcGlob', {
     required: true,
     trimWhitespace: true,
   });
@@ -31,7 +31,12 @@ export function getInputs() {
     trimWhitespace: true,
   });
 
-  const headers = getInput('headers', {
+  const cacheControl = getInput('cacheControl', {
+    required: false,
+    trimWhitespace: true,
+  });
+
+  const acl = getInput('acl', {
     required: false,
     trimWhitespace: true,
   });
@@ -39,10 +44,11 @@ export function getInputs() {
   return {
     bucket,
     region,
-    srcDir,
+    srcGlob,
     prefix,
     stripExtensionGlob,
     action,
-    headers,
+    cacheControl,
+    acl,
   };
 }
