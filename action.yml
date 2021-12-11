@@ -11,7 +11,11 @@ inputs:
   action:
     required: true
     description: 'The action to perform. Accepted values: sync|clean'
-  srcGlob:
+  srcDir:
+    required: false
+    default: ''
+    description: 'Source directory of local files to sync (if using the sync action)'
+  filesGlob:
     required: false
     default: ''
     description: 'Glob pattern for source files to sync to S3 (if using the sync action)'

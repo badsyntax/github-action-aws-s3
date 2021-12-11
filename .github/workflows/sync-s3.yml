@@ -44,7 +44,8 @@ jobs:
         with:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync'
-          srcGlob: './out/**/*.html'
+          srcDir: './out'
+          filesGlob: '**/*.html'
           awsRegion: 'us-east-1'
           prefix: 'preview'
           stripExtensionGlob: '**/**.html'
@@ -56,7 +57,8 @@ jobs:
         with:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync'
-          srcGlob: './out/css/**'
+          srcDir: './out'
+          filesGlob: 'css/**'
           awsRegion: 'us-east-1'
           prefix: 'preview'
           cacheControl: 'public,max-age=31536000,immutable'
