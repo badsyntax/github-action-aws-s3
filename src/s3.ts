@@ -55,15 +55,6 @@ export function getObjectKeyFromFilePath(
   return extensionLessFile + ext;
 }
 
-function getCacheControlForExtension(extension: string): string {
-  switch (extension) {
-    case '.html':
-      return 'public,max-age=0,s-maxage=31536000,must-revalidate';
-    default:
-      return 'public,max-age=31536000,immutable';
-  }
-}
-
 function getContentTypeForExtension(extension: string): string {
   const contentType = mime.lookup(extension);
   if (contentType === false) {
