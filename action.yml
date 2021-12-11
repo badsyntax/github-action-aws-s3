@@ -26,6 +26,10 @@ inputs:
     require: false
     default: ''
     description: "Glob pattern to strip extension (f using the sync action). For example: '**/**.html'"
+  headers:
+    require: false
+    default: ''
+    description: 'Headers'
 runs:
   using: 'node16'
   main: 'dist/index.js'

@@ -37,6 +37,8 @@ jobs:
           awsRegion: 'us-east-1'
           prefix: 'preview'
           stripExtensionGlob: '**/**.html'
+          headers:
+            'fooo': 'bar'
 
       - name: Output Synced Files
         run: |

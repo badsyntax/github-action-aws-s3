@@ -31,6 +31,11 @@ export function getInputs() {
     trimWhitespace: true,
   });
 
+  const headers = getInput('headers', {
+    required: false,
+    trimWhitespace: true,
+  });
+
   return {
     bucket,
     region,
@@ -38,5 +43,6 @@ export function getInputs() {
     prefix,
     stripExtensionGlob,
     action,
+    headers,
   };
 }
