@@ -1,0 +1,46 @@
+name: 'Sync S3'
+
+concurrency:
+  group: prod_deploy
+  cancel-in-progress: false
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: 'Sync'
+    runs-on: ubuntu-20.04
+    if: github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - uses: ./
+        name: Sync to S3
+        id: sync-s3
+        with:
+          bucket: 'richardwillis.info-example-bucket-us-east-1'
+          action: 'sync'
+          srcDir: './out'
+          awsRegion: 'us-east-1'
+          prefix: 'preview'
+          stripExtensionGlob: '**/**.html'
+
+      - name: Output Synced Files
+        run: |
+          echo "Synced Files: $S3SyncedFiles"
+        env:
+          # Use outputs from the S3 step
+          S3SyncedFiles: ${{ steps.sync-s3.outputs.S3SyncedFiles }}
