@@ -146,6 +146,9 @@ export async function syncFilesToS3(
   prefix: S3ObjectPrefix | string,
   stripExtensionGlob: string
 ): Promise<string[]> {
+  if (srcDir.trim() === '') {
+    throw new Error('srcDir must not be empty');
+  }
   const files = await getFilesFromSrcDir(srcDir);
   const rootDir = path.resolve(srcDir);
   const uploadedKeys: string[] = [];

@@ -32,7 +32,7 @@ jobs:
         id: sync-s3
         with:
           bucket: 'richardwillis.info-example-bucket-us-east-1'
-          action: 'sync'
+          action: 'clean'
           srcDir: './out'
           awsRegion: 'us-east-1'
           prefix: 'preview'

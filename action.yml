@@ -12,8 +12,9 @@ inputs:
     required: true
     description: 'The action to perform. Accepted values: sync|clean'
   srcDir:
-    required: true
-    description: 'The source directory to sync to S3'
+    required: false
+    default: ''
+    description: 'The source directory to sync to S3 (if using the sync action)'
   awsRegion:
     require: true
     description: 'The AWS region. For example: us-east-1'
@@ -24,7 +25,7 @@ inputs:
   stripExtensionGlob:
     require: false
     default: ''
-    description: "Glob pattern to strip extension. For example: '**/**.html'"
+    description: "Glob pattern to strip extension (f using the sync action). For example: '**/**.html'"
 runs:
   using: 'node16'
   main: 'dist/index.js'
