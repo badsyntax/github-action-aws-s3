@@ -11,7 +11,12 @@ export function getInputs() {
     trimWhitespace: true,
   });
 
-  const srcGlob = getInput('srcGlob', {
+  const srcDir = getInput('srcDir', {
+    required: true,
+    trimWhitespace: true,
+  });
+
+  const filesGlob = getInput('filesGlob', {
     required: true,
     trimWhitespace: true,
   });
@@ -44,7 +49,8 @@ export function getInputs() {
   return {
     bucket,
     region,
-    srcGlob,
+    srcDir,
+    filesGlob,
     prefix,
     stripExtensionGlob,
     action,

@@ -83,7 +83,8 @@ jobs:
         with:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync' # sync|clean
-          srcGlob: './out/css/**' # required only if action is sync
+          srcDir: './out' # required only if action is sync
+          filesGlob: 'css/**' # required only if action is sync
           awsRegion: 'us-east-1'
           prefix: 'preview'
           cacheControl: 'public,max-age=31536000,immutable'

@@ -19,7 +19,8 @@ export async function run(): Promise<void> {
       const syncedFiles = await syncFilesToS3(
         s3Client,
         inputs.bucket,
-        inputs.srcGlob,
+        inputs.srcDir,
+        inputs.filesGlob,
         inputs.prefix,
         inputs.stripExtensionGlob,
         inputs.cacheControl,

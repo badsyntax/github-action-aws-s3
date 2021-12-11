@@ -42936,7 +42936,11 @@ function getInputs() {
         required: true,
         trimWhitespace: true,
     });
-    const srcGlob = (0,core.getInput)('srcGlob', {
+    const srcDir = (0,core.getInput)('srcDir', {
+        required: true,
+        trimWhitespace: true,
+    });
+    const filesGlob = (0,core.getInput)('filesGlob', {
         required: true,
         trimWhitespace: true,
     });
@@ -42963,7 +42967,8 @@ function getInputs() {
     return {
         bucket,
         region,
-        srcGlob,
+        srcDir,
+        filesGlob,
         prefix,
         stripExtensionGlob,
         action,
@@ -43053,21 +43058,21 @@ async function maybeUploadFile(client, s3BucketName, absoluteFilePath, key, cach
     }
     return shouldUploadFile;
 }
-async function getFilesFromSrcGlob(srcGlob) {
-    if (srcGlob.trim() === '') {
-        throw new Error('srcGlob must not be empty');
+async function getFilesFromSrcDir(srcDir, filesGlob) {
+    if (srcDir.trim() === '' || filesGlob.trim() === '') {
+        throw new Error('srcDir and filesGlob must not be empty');
     }
-    const globber = await glob.create(srcGlob, {
+    const globber = await glob.create(`${srcDir}/${filesGlob}`, {
         matchDirectories: false,
     });
     return globber.glob();
 }
-async function syncFilesToS3(client, s3BucketName, srcGlob, prefix, stripExtensionGlob, cacheControl, acl) {
+async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, stripExtensionGlob, cacheControl, acl) {
     if (!workspace) {
         throw new Error('GITHUB_WORKSPACE is not defined');
     }
-    const rootDir = workspace;
-    const files = await getFilesFromSrcGlob(srcGlob);
+    const rootDir = external_node_path_namespaceObject.join(workspace, srcDir);
+    const files = await getFilesFromSrcDir(srcDir, filesGlob);
     const uploadedKeys = [];
     for (const file of files) {
         const key = getObjectKeyFromFilePath(rootDir, file, prefix, stripExtensionGlob);
@@ -43117,7 +43122,7 @@ async function run() {
             region: inputs.region,
         });
         if (inputs.action == 'sync') {
-            const syncedFiles = await syncFilesToS3(s3Client, inputs.bucket, inputs.srcGlob, inputs.prefix, inputs.stripExtensionGlob, inputs.cacheControl, inputs.acl);
+            const syncedFiles = await syncFilesToS3(s3Client, inputs.bucket, inputs.srcDir, inputs.filesGlob, inputs.prefix, inputs.stripExtensionGlob, inputs.cacheControl, inputs.acl);
             logOutputParameters(syncedFiles);
         }
         else if (inputs.action === 'clean') {

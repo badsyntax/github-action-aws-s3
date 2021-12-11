@@ -126,11 +126,14 @@ export async function maybeUploadFile(
   return shouldUploadFile;
 }
 
-async function getFilesFromSrcGlob(srcGlob: string): Promise<string[]> {
-  if (srcGlob.trim() === '') {
-    throw new Error('srcGlob must not be empty');
+export async function getFilesFromSrcDir(
+  srcDir: string,
+  filesGlob: string
+): Promise<string[]> {
+  if (srcDir.trim() === '' || filesGlob.trim() === '') {
+    throw new Error('srcDir and filesGlob must not be empty');
   }
-  const globber = await glob.create(srcGlob, {
+  const globber = await glob.create(`${srcDir}/${filesGlob}`, {
     matchDirectories: false,
   });
   return globber.glob();
@@ -139,7 +142,8 @@ async function getFilesFromSrcGlob(srcGlob: string): Promise<string[]> {
 export async function syncFilesToS3(
   client: S3Client,
   s3BucketName: string,
-  srcGlob: string,
+  srcDir: string,
+  filesGlob: string,
   prefix: S3ObjectPrefix | string,
   stripExtensionGlob: string,
   cacheControl: string,
@@ -148,8 +152,8 @@ export async function syncFilesToS3(
   if (!workspace) {
     throw new Error('GITHUB_WORKSPACE is not defined');
   }
-  const rootDir = workspace;
-  const files = await getFilesFromSrcGlob(srcGlob);
+  const rootDir = path.join(workspace, srcDir);
+  const files = await getFilesFromSrcDir(srcDir, filesGlob);
   const uploadedKeys: string[] = [];
   for (const file of files) {
     const key = getObjectKeyFromFilePath(
