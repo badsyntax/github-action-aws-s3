@@ -32,11 +32,11 @@ jobs:
         id: update-stack
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          stackName: 'richardwillis-github-action-example-cloudformation-stack'
+          stackName: 'badsyntax-github-action-example-aws-s3'
           template: './cloudformation/s3bucket-example.yml'
           applyChangeSet: ${{ github.event_name != 'repository_dispatch' }}
           awsRegion: 'us-east-1'
-          parameters: 'S3BucketName=richardwillis.info-example-bucket-us-east-1&S3AllowedOrigins=https://richardwillis.info'
+          parameters: 'S3BucketName=badsyntax-github-action-example-aws-s3-us-east-1&S3AllowedOrigins=https://richardwillis.info'
 
       - uses: ./
         name: Sync HTML files to S3
