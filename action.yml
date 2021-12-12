@@ -1,5 +1,5 @@
-name: 'AWS S3'
-description: 'Sync files to S3'
+name: 'AWS S3 Actions'
+description: 'Perform actions on a S3 bucket like sync or clean files'
 author: 'Richard Willis <willis.rh@gmail.com>'
 branding:
   icon: 'upload-cloud'
