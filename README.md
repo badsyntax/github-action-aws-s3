@@ -92,8 +92,8 @@ jobs:
 
 ## Related GitHub Actions
 
-- [github-action-aws-cloudfront](https://github.com/badsyntax/github-action-aws-cloudfront)
-- [github-action-aws-cloudformation](https://github.com/badsyntax/github-action-aws-cloudformation)
+- [badsyntax/github-action-aws-cloudfront](https://github.com/badsyntax/github-action-aws-cloudfront)
+- [badsyntax/github-action-aws-cloudformation](https://github.com/badsyntax/github-action-aws-cloudformation)
 
 ## Debugging
 
