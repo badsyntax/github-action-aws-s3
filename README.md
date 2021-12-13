@@ -70,15 +70,15 @@ jobs:
 
       - name: Output Synced Files
         run: |
-          echo "Synced HTML Files: $S3SyncedHTMLFiles"
+          echo "Synced object keys: $S3SyncedFiles"
         env:
           # Use outputs from previous sync steps
-          S3SyncedHTMLFiles: ${{ steps.sync-html-s3.outputs.S3SyncedFiles }}
+          S3SyncedFiles: ${{ steps.sync-html-s3.outputs.modifiedKeys }}
 ```
 
 ## Action Inputs
 
-| key                             | description                                                                                                                                               | example                             |
+| Name                            | Description                                                                                                                                               | Example                             |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | `bucket`                        | The name of the S3 bucket                                                                                                                                 | `example-bucket-us-east-1`          |
 | `action`                        | The action to perform. Accepted values: `sync` or `clean`                                                                                                 | `sync`                              |
@@ -89,6 +89,12 @@ jobs:
 | `prefix` (optional)             | The prefix for the uploaded object                                                                                                                        | `custom/folder`                     |
 | `stripExtensionGlob` (optional) | Glob pattern to strip extension (if using the sync action)                                                                                                | `**/**.html`                        |
 | `acl` (optional)                | Access control list (options: `authenticated-read, aws-exec-read, bucket-owner-full-control, bucket-owner-read, private, public-read, public-read-write`) | `private`                           |
+
+## Action Outputs
+
+| Name           | Description                                                               | Example                   |
+| -------------- | ------------------------------------------------------------------------- | ------------------------- |
+| `modifiedKeys` | A comma separated list of modified object keys (either synced or removed) | `file1,folder1/file2.ext` |
 
 ## Related GitHub Actions
 
