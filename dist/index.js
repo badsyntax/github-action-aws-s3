@@ -42922,7 +42922,7 @@ var dist_cjs = __nccwpck_require__(9250);
 
 const workspace = process.env.GITHUB_WORKSPACE;
 function logOutputParameters(syncedFiles) {
-    (0,core.info)(`::set-output name=S3SyncedFiles::${syncedFiles.join(',')}`);
+    (0,core.info)(`::set-output name=modifiedKeys::${syncedFiles.join(',')}`);
 }
 
 ;// CONCATENATED MODULE: ./lib/inputs.js
@@ -43088,7 +43088,7 @@ async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, st
     (0,core.info)(`Synced ${uploadedKeys.length} files with cache-control: ${cacheControl}`);
     return uploadedKeys;
 }
-async function emptyS3Directory(client, s3BucketName, prefix, initialObjectsCleaned = 0) {
+async function emptyS3Directory(client, s3BucketName, prefix, initialObjectsCleaned = []) {
     var _a;
     const objects = await client.send(new dist_cjs.ListObjectsV2Command({
         Bucket: s3BucketName,
@@ -43097,11 +43097,14 @@ async function emptyS3Directory(client, s3BucketName, prefix, initialObjectsClea
     if (!((_a = objects.Contents) === null || _a === void 0 ? void 0 : _a.length)) {
         return initialObjectsCleaned;
     }
+    const objectKeys = objects.Contents.map(({ Key }) => ({ Key }));
     await client.send(new dist_cjs.DeleteObjectsCommand({
         Bucket: s3BucketName,
-        Delete: { Objects: objects.Contents.map(({ Key }) => ({ Key })) },
+        Delete: { Objects: objectKeys },
     }));
-    const totalObjectsCleaned = initialObjectsCleaned + objects.Contents.length;
+    const totalObjectsCleaned = initialObjectsCleaned
+        .concat(objectKeys.map(({ Key }) => Key || ''))
+        .filter(Boolean);
     if (objects.IsTruncated) {
         return await emptyS3Directory(client, s3BucketName, prefix, totalObjectsCleaned);
     }
@@ -43126,8 +43129,9 @@ async function run() {
             logOutputParameters(syncedFiles);
         }
         else if (inputs.action === 'clean') {
-            const totalObjectsCleaned = await emptyS3Directory(s3Client, inputs.bucket, inputs.prefix);
-            (0,core.info)(`Cleaned ${totalObjectsCleaned} from s3://${inputs.bucket}/${inputs.prefix}`);
+            const cleanedFiles = await emptyS3Directory(s3Client, inputs.bucket, inputs.prefix);
+            logOutputParameters(cleanedFiles);
+            (0,core.info)(`Cleaned ${cleanedFiles.length} from s3://${inputs.bucket}/${inputs.prefix}`);
         }
     }
     catch (error) {

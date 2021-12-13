@@ -39,8 +39,8 @@ inputs:
     default: ''
     description: '"authenticated-read" | "aws-exec-read" | "bucket-owner-full-control" | "bucket-owner-read" | "private" | "public-read" | "public-read-write"'
 outputs:
-  S3SyncedFiles:
-    description: 'A comma separated list of objects keys for files synced to S3. For example: file1,folder1/file2'
+  modifiedKeys:
+    description: 'A comma separated list of modified object keys (either synced or removed). For example: file1,folder1/file2.ext'
 runs:
   using: 'node16'
   main: 'dist/index.js'

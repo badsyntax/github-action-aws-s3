@@ -28,13 +28,14 @@ export async function run(): Promise<void> {
       );
       logOutputParameters(syncedFiles);
     } else if (inputs.action === 'clean') {
-      const totalObjectsCleaned = await emptyS3Directory(
+      const cleanedFiles = await emptyS3Directory(
         s3Client,
         inputs.bucket,
         inputs.prefix
       );
+      logOutputParameters(cleanedFiles);
       info(
-        `Cleaned ${totalObjectsCleaned} from s3://${inputs.bucket}/${inputs.prefix}`
+        `Cleaned ${cleanedFiles.length} from s3://${inputs.bucket}/${inputs.prefix}`
       );
     }
   } catch (error) {

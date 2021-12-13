@@ -187,8 +187,8 @@ export async function emptyS3Directory(
   client: S3Client,
   s3BucketName: string,
   prefix: string,
-  initialObjectsCleaned = 0
-): Promise<number> {
+  initialObjectsCleaned: string[] = []
+): Promise<string[]> {
   const objects = await client.send(
     new ListObjectsV2Command({
       Bucket: s3BucketName,
@@ -200,14 +200,18 @@ export async function emptyS3Directory(
     return initialObjectsCleaned;
   }
 
+  const objectKeys = objects.Contents.map(({ Key }) => ({ Key }));
+
   await client.send(
     new DeleteObjectsCommand({
       Bucket: s3BucketName,
-      Delete: { Objects: objects.Contents.map(({ Key }) => ({ Key })) },
+      Delete: { Objects: objectKeys },
     })
   );
 
-  const totalObjectsCleaned = initialObjectsCleaned + objects.Contents.length;
+  const totalObjectsCleaned = initialObjectsCleaned
+    .concat(objectKeys.map(({ Key }) => Key || ''))
+    .filter(Boolean);
 
   if (objects.IsTruncated) {
     return await emptyS3Directory(
