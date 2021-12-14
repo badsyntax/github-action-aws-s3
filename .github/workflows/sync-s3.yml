@@ -69,5 +69,5 @@ jobs:
           echo "Synced Immutable Files: $S3SyncedImmutableFiles"
         env:
           # Use outputs from the S3 step
-          S3SyncedHTMLFiles: ${{ steps.sync-html-s3.outputs.modifiedKeys }}
-          S3SyncedImmutableFiles: ${{ steps.sync-immutable-s3.outputs.modifiedKeys }}
+          S3SyncedHTMLFiles: ${{ steps.sync-html-s3.outputs.modified-keys }}
+          S3SyncedImmutableFiles: ${{ steps.sync-immutable-s3.outputs.modified-keys }}

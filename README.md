@@ -73,7 +73,7 @@ jobs:
           echo "Synced object keys: $S3SyncedFiles"
         env:
           # Use outputs from previous sync steps
-          S3SyncedFiles: ${{ steps.sync-html-s3.outputs.modifiedKeys }}
+          S3SyncedFiles: ${{ steps.sync-html-s3.outputs.modified-keys }}
 ```
 
 ## Action Inputs
@@ -92,9 +92,9 @@ jobs:
 
 ## Action Outputs
 
-| Name           | Description                                                               | Example                   |
-| -------------- | ------------------------------------------------------------------------- | ------------------------- |
-| `modifiedKeys` | A comma separated list of modified object keys (either synced or removed) | `file1,folder1/file2.ext` |
+| Name            | Description                                                               | Example                   |
+| --------------- | ------------------------------------------------------------------------- | ------------------------- |
+| `modified-keys` | A comma separated list of modified object keys (either synced or removed) | `file1,folder1/file2.ext` |
 
 ## Related GitHub Actions
 

@@ -39,7 +39,7 @@ inputs:
     default: ''
     description: '"authenticated-read" | "aws-exec-read" | "bucket-owner-full-control" | "bucket-owner-read" | "private" | "public-read" | "public-read-write"'
 outputs:
-  modifiedKeys:
+  modified-keys:
     description: 'A comma separated list of modified object keys (either synced or removed). For example: file1,folder1/file2.ext'
 runs:
   using: 'node16'
