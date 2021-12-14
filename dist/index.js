@@ -42932,15 +42932,15 @@ function getInputs() {
         required: true,
         trimWhitespace: true,
     });
-    const region = (0,core.getInput)('awsRegion', {
+    const region = (0,core.getInput)('aws-region', {
         required: true,
         trimWhitespace: true,
     });
-    const srcDir = (0,core.getInput)('srcDir', {
+    const srcDir = (0,core.getInput)('src-dir', {
         required: true,
         trimWhitespace: true,
     });
-    const filesGlob = (0,core.getInput)('filesGlob', {
+    const filesGlob = (0,core.getInput)('files-glob', {
         required: true,
         trimWhitespace: true,
     });
@@ -42948,7 +42948,7 @@ function getInputs() {
         required: false,
         trimWhitespace: true,
     });
-    const stripExtensionGlob = (0,core.getInput)('stripExtensionGlob', {
+    const stripExtensionGlob = (0,core.getInput)('strip-extension-glob', {
         required: false,
         trimWhitespace: true,
     });
@@ -42956,7 +42956,7 @@ function getInputs() {
         required: false,
         trimWhitespace: true,
     });
-    const cacheControl = (0,core.getInput)('cacheControl', {
+    const cacheControl = (0,core.getInput)('cache-control', {
         required: false,
         trimWhitespace: true,
     });

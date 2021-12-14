@@ -61,12 +61,12 @@ jobs:
         with:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync' # sync|clean
-          srcDir: './out' # required only if action is sync
-          filesGlob: '**/*.html' # required only if action is sync
-          awsRegion: 'us-east-1'
+          src-dir: './out' # required only if action is sync
+          files-glob: '**/*.html' # required only if action is sync
+          aws-region: 'us-east-1'
           prefix: 'preview'
-          stripExtensionGlob: '**/**.html'
-          cacheControl: 'public,max-age=0,s-maxage=31536000,must-revalidate'
+          strip-extension-glob: '**/**.html'
+          cache-control: 'public,max-age=0,s-maxage=31536000,must-revalidate'
 
       - name: Output Synced Files
         run: |
@@ -78,17 +78,17 @@ jobs:
 
 ## Action Inputs
 
-| Name                            | Description                                                                                                                                               | Example                             |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `bucket`                        | The name of the S3 bucket                                                                                                                                 | `example-bucket-us-east-1`          |
-| `action`                        | The action to perform. Accepted values: `sync` or `clean`                                                                                                 | `sync`                              |
-| `srcDir`                        | Source directory of local files to sync (if using the sync action)                                                                                        | `./src`                             |
-| `filesGlob`                     | Glob pattern for source files to sync to S3 (if using the sync action)                                                                                    | `**/*.html`                         |
-| `awsRegion`                     | The AWS region                                                                                                                                            | `us-east-1`                         |
-| `cacheControl`                  | Cache-control headers                                                                                                                                     | `public,max-age=31536000,immutable` |
-| `prefix` (optional)             | The prefix for the uploaded object                                                                                                                        | `custom/folder`                     |
-| `stripExtensionGlob` (optional) | Glob pattern to strip extension (if using the sync action)                                                                                                | `**/**.html`                        |
-| `acl` (optional)                | Access control list (options: `authenticated-read, aws-exec-read, bucket-owner-full-control, bucket-owner-read, private, public-read, public-read-write`) | `private`                           |
+| Name                              | Description                                                                                                                                               | Example                             |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `bucket`                          | The name of the S3 bucket                                                                                                                                 | `example-bucket-us-east-1`          |
+| `action`                          | The action to perform. Accepted values: `sync` or `clean`                                                                                                 | `sync`                              |
+| `src-dir`                         | Source directory of local files to sync (if using the sync action)                                                                                        | `./src`                             |
+| `files-glob`                      | Glob pattern for source files to sync to S3 (if using the sync action)                                                                                    | `**/*.html`                         |
+| `aws-region`                      | The AWS region                                                                                                                                            | `us-east-1`                         |
+| `cache-control`                   | Cache-control headers                                                                                                                                     | `public,max-age=31536000,immutable` |
+| `prefix` (optional)               | The prefix for the uploaded object                                                                                                                        | `custom/folder`                     |
+| `strip-extension-glob` (optional) | Glob pattern to strip extension (if using the sync action)                                                                                                | `**/**.html`                        |
+| `acl` (optional)                  | Access control list (options: `authenticated-read, aws-exec-read, bucket-owner-full-control, bucket-owner-read, private, public-read, public-read-write`) | `private`                           |
 
 ## Action Outputs
 
