@@ -43131,7 +43131,7 @@ async function run() {
         else if (inputs.action === 'clean') {
             const cleanedFiles = await emptyS3Directory(s3Client, inputs.bucket, inputs.prefix);
             logOutputParameters(cleanedFiles);
-            (0,core.info)(`Cleaned ${cleanedFiles.length} from s3://${inputs.bucket}/${inputs.prefix}`);
+            (0,core.info)(`Cleaned ${cleanedFiles.length} objects from s3://${inputs.bucket}/${inputs.prefix}`);
         }
     }
     catch (error) {

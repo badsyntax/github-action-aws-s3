@@ -35,7 +35,7 @@ export async function run(): Promise<void> {
       );
       logOutputParameters(cleanedFiles);
       info(
-        `Cleaned ${cleanedFiles.length} from s3://${inputs.bucket}/${inputs.prefix}`
+        `Cleaned ${cleanedFiles.length} objects from s3://${inputs.bucket}/${inputs.prefix}`
       );
     }
   } catch (error) {
