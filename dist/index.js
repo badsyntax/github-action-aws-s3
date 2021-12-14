@@ -42922,7 +42922,7 @@ var dist_cjs = __nccwpck_require__(9250);
 
 const workspace = process.env.GITHUB_WORKSPACE;
 function logOutputParameters(syncedFiles) {
-    (0,core.info)(`::set-output name=modifiedKeys::${syncedFiles.join(',')}`);
+    (0,core.setOutput)('modified-keys', syncedFiles.join(','));
 }
 
 ;// CONCATENATED MODULE: ./lib/inputs.js
