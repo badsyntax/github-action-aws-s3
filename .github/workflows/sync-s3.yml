@@ -44,12 +44,12 @@ jobs:
         with:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync'
-          srcDir: './out'
-          filesGlob: '**/*.html'
-          awsRegion: 'us-east-1'
+          src-dir: './out'
+          files-glob: '**/*.html'
+          aws-region: 'us-east-1'
           prefix: 'preview'
-          stripExtensionGlob: '**/**.html'
-          cacheControl: 'public,max-age=0,s-maxage=31536000,must-revalidate'
+          strip-extension-glob: '**/**.html'
+          cache-control: 'public,max-age=0,s-maxage=31536000,must-revalidate'
 
       - uses: ./
         name: Sync immutable files to S3
@@ -57,11 +57,11 @@ jobs:
         with:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync'
-          srcDir: './out'
-          filesGlob: 'css/**'
-          awsRegion: 'us-east-1'
+          src-dir: './out'
+          files-glob: 'css/**'
+          aws-region: 'us-east-1'
           prefix: 'preview'
-          cacheControl: 'public,max-age=31536000,immutable'
+          cache-control: 'public,max-age=31536000,immutable'
 
       - name: Output Synced Files
         run: |

@@ -6,17 +6,17 @@ export function getInputs() {
     trimWhitespace: true,
   });
 
-  const region = getInput('awsRegion', {
+  const region = getInput('aws-region', {
     required: true,
     trimWhitespace: true,
   });
 
-  const srcDir = getInput('srcDir', {
+  const srcDir = getInput('src-dir', {
     required: true,
     trimWhitespace: true,
   });
 
-  const filesGlob = getInput('filesGlob', {
+  const filesGlob = getInput('files-glob', {
     required: true,
     trimWhitespace: true,
   });
@@ -26,7 +26,7 @@ export function getInputs() {
     trimWhitespace: true,
   });
 
-  const stripExtensionGlob = getInput('stripExtensionGlob', {
+  const stripExtensionGlob = getInput('strip-extension-glob', {
     required: false,
     trimWhitespace: true,
   });
@@ -36,7 +36,7 @@ export function getInputs() {
     trimWhitespace: true,
   });
 
-  const cacheControl = getInput('cacheControl', {
+  const cacheControl = getInput('cache-control', {
     required: false,
     trimWhitespace: true,
   });
