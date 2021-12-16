@@ -40,6 +40,8 @@ export async function run(): Promise<void> {
       info(
         `Cleaned ${cleanedFiles.length} objects from s3://${inputs.bucket}/${inputs.prefix}`
       );
+    } else {
+      throw new Error(`Unknown action: ${inputs.action}`);
     }
   } catch (error) {
     if (error instanceof Error) {
