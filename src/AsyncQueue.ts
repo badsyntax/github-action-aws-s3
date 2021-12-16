@@ -29,6 +29,5 @@ export class AsyncQueue {
         })
       )
     );
-    return await this.process();
   }
 }

@@ -43561,7 +43561,6 @@ class AsyncQueue {
             this.inProgress--;
             return this.process();
         })));
-        return await this.process();
     }
 }
 
@@ -43697,7 +43696,7 @@ async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, st
             });
         }
         else {
-            (0,core.info)(`Skipped ${s3Key} (ETAG, ContentType & CacheControl match)`);
+            (0,core.info)(`Skipped ${s3Key} (no-change)`);
         }
     })).process();
     const smallFiles = filesToUpload.filter((file) => !file.multipart);
@@ -43777,6 +43776,9 @@ async function run() {
             const cleanedFiles = await emptyS3Directory(s3Client, inputs.bucket, inputs.prefix);
             logOutputParameters(cleanedFiles);
             (0,core.info)(`Cleaned ${cleanedFiles.length} objects from s3://${inputs.bucket}/${inputs.prefix}`);
+        }
+        else {
+            throw new Error(`Unknown action: ${inputs.action}`);
         }
     }
     catch (error) {

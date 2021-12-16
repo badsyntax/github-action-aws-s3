@@ -261,7 +261,7 @@ export async function syncFilesToS3(
           multipart,
         });
       } else {
-        info(`Skipped ${s3Key} (ETAG, ContentType & CacheControl match)`);
+        info(`Skipped ${s3Key} (no-change)`);
       }
     })
   ).process();
