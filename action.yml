@@ -38,6 +38,18 @@ inputs:
     required: false
     default: ''
     description: '"authenticated-read" | "aws-exec-read" | "bucket-owner-full-control" | "bucket-owner-read" | "private" | "public-read" | "public-read-write"'
+  multipart-file-size-mb:
+    required: false
+    default: 100
+    description: 'The minimum file size, in megabytes, for which to upload files using multipart. The default is 100'
+  multipart-chunk-bytes:
+    required: false
+    default: 10485760
+    description: 'The chunk size, in bytes, to upload multipart file parts in. The default is 10485760 (10MB)'
+  concurrency:
+    required: false
+    default: 6
+    description: 'How many processes to perform at once. Default is 6'
 outputs:
   modified-keys:
     description: 'A comma separated list of modified object keys (either synced or removed). For example: file1,folder1/file2.ext'

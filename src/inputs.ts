@@ -1,4 +1,9 @@
 import { getInput } from '@actions/core';
+import {
+  defaultConcurrency,
+  defaultLargeFileSizeInMb,
+  defaultMultipartUploadPartsInBytes,
+} from './defaults.js';
 
 export function getInputs() {
   const bucket = getInput('bucket', {
@@ -46,6 +51,39 @@ export function getInputs() {
     trimWhitespace: true,
   });
 
+  const _multipartFileSizeMb = parseInt(
+    getInput('multipart-file-size-mb', {
+      required: false,
+      trimWhitespace: true,
+    }),
+    10
+  );
+
+  const multipartFileSizeMb = isNaN(_multipartFileSizeMb)
+    ? defaultLargeFileSizeInMb
+    : _multipartFileSizeMb;
+
+  const _multipartChunkBytes = parseInt(
+    getInput('multipart-chunk-bytes', {
+      required: false,
+      trimWhitespace: true,
+    }),
+    10
+  );
+
+  const multipartChunkBytes = isNaN(_multipartChunkBytes)
+    ? defaultMultipartUploadPartsInBytes
+    : _multipartFileSizeMb;
+
+  const _concurrency = parseInt(
+    getInput('concurrency', {
+      required: false,
+      trimWhitespace: true,
+    })
+  );
+
+  const concurrency = isNaN(_concurrency) ? defaultConcurrency : _concurrency;
+
   return {
     bucket,
     region,
@@ -56,5 +94,8 @@ export function getInputs() {
     action,
     cacheControl,
     acl,
+    multipartFileSizeMb,
+    multipartChunkBytes,
+    concurrency,
   };
 }

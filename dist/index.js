@@ -2999,6 +2999,69 @@ exports.uint32ArrayFrom = uint32ArrayFrom;
 
 /***/ }),
 
+/***/ 3134:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AbortController = void 0;
+const AbortSignal_1 = __nccwpck_require__(4814);
+class AbortController {
+    constructor() {
+        this.signal = new AbortSignal_1.AbortSignal();
+    }
+    abort() {
+        this.signal.abort();
+    }
+}
+exports.AbortController = AbortController;
+
+
+/***/ }),
+
+/***/ 4814:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AbortSignal = void 0;
+class AbortSignal {
+    constructor() {
+        this.onabort = null;
+        this._aborted = false;
+        Object.defineProperty(this, "_aborted", {
+            value: false,
+            writable: true,
+        });
+    }
+    get aborted() {
+        return this._aborted;
+    }
+    abort() {
+        this._aborted = true;
+        if (this.onabort) {
+            this.onabort(this);
+            this.onabort = null;
+        }
+    }
+}
+exports.AbortSignal = AbortSignal;
+
+
+/***/ }),
+
+/***/ 3358:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const tslib_1 = __nccwpck_require__(4351);
+tslib_1.__exportStar(__nccwpck_require__(3134), exports);
+tslib_1.__exportStar(__nccwpck_require__(4814), exports);
+
+
+/***/ }),
+
 /***/ 7862:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -30397,6 +30460,427 @@ exports.isArrayBuffer = isArrayBuffer;
 
 /***/ }),
 
+/***/ 612:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Upload = void 0;
+const abort_controller_1 = __nccwpck_require__(3358);
+const client_s3_1 = __nccwpck_require__(9250);
+const events_1 = __nccwpck_require__(2361);
+const bytelength_1 = __nccwpck_require__(3393);
+const chunker_1 = __nccwpck_require__(6137);
+const MIN_PART_SIZE = 1024 * 1024 * 5;
+class Upload extends events_1.EventEmitter {
+    constructor(options) {
+        super();
+        this.MAX_PARTS = 10000;
+        this.queueSize = 4;
+        this.partSize = MIN_PART_SIZE;
+        this.leavePartsOnError = false;
+        this.tags = [];
+        this.concurrentUploaders = [];
+        this.uploadedParts = [];
+        this.isMultiPart = true;
+        this.queueSize = options.queueSize || this.queueSize;
+        this.partSize = options.partSize || this.partSize;
+        this.leavePartsOnError = options.leavePartsOnError || this.leavePartsOnError;
+        this.tags = options.tags || this.tags;
+        this.client = options.client;
+        this.params = options.params;
+        this.__validateInput();
+        this.totalBytes = bytelength_1.byteLength(this.params.Body);
+        this.bytesUploadedSoFar = 0;
+        this.abortController = new abort_controller_1.AbortController();
+    }
+    async abort() {
+        this.abortController.abort();
+    }
+    async done() {
+        return await Promise.race([this.__doMultipartUpload(), this.__abortTimeout(this.abortController.signal)]);
+    }
+    on(event, listener) {
+        this.uploadEvent = event;
+        super.on(event, listener);
+    }
+    async __uploadUsingPut(dataPart) {
+        this.isMultiPart = false;
+        const params = { ...this.params, Body: dataPart.data };
+        const putResult = await this.client.send(new client_s3_1.PutObjectCommand(params));
+        this.putResponse = putResult;
+        const totalSize = bytelength_1.byteLength(dataPart.data);
+        this.__notifyProgress({
+            loaded: totalSize,
+            total: totalSize,
+            part: 1,
+            Key: this.params.Key,
+            Bucket: this.params.Bucket,
+        });
+    }
+    async __createMultipartUpload() {
+        if (!this.createMultiPartPromise) {
+            const createCommandParams = { ...this.params, Body: undefined };
+            this.createMultiPartPromise = this.client.send(new client_s3_1.CreateMultipartUploadCommand(createCommandParams));
+        }
+        const createMultipartUploadResult = await this.createMultiPartPromise;
+        this.uploadId = createMultipartUploadResult.UploadId;
+    }
+    async __doConcurrentUpload(dataFeeder) {
+        for await (const dataPart of dataFeeder) {
+            if (this.uploadedParts.length > this.MAX_PARTS) {
+                throw new Error(`Exceeded ${this.MAX_PARTS} as part of the upload to ${this.params.Key} and ${this.params.Bucket}.`);
+            }
+            try {
+                if (this.abortController.signal.aborted) {
+                    return;
+                }
+                if (dataPart.partNumber === 1 && dataPart.lastPart) {
+                    return await this.__uploadUsingPut(dataPart);
+                }
+                if (!this.uploadId) {
+                    await this.__createMultipartUpload();
+                    if (this.abortController.signal.aborted) {
+                        return;
+                    }
+                }
+                const partResult = await this.client.send(new client_s3_1.UploadPartCommand({
+                    ...this.params,
+                    UploadId: this.uploadId,
+                    Body: dataPart.data,
+                    PartNumber: dataPart.partNumber,
+                }));
+                if (this.abortController.signal.aborted) {
+                    return;
+                }
+                this.uploadedParts.push({
+                    PartNumber: dataPart.partNumber,
+                    ETag: partResult.ETag,
+                });
+                this.bytesUploadedSoFar += bytelength_1.byteLength(dataPart.data);
+                this.__notifyProgress({
+                    loaded: this.bytesUploadedSoFar,
+                    total: this.totalBytes,
+                    part: dataPart.partNumber,
+                    Key: this.params.Key,
+                    Bucket: this.params.Bucket,
+                });
+            }
+            catch (e) {
+                if (!this.uploadId) {
+                    throw e;
+                }
+                if (this.leavePartsOnError) {
+                    throw e;
+                }
+            }
+        }
+    }
+    async __doMultipartUpload() {
+        const dataFeeder = chunker_1.getChunk(this.params.Body, this.partSize);
+        for (let index = 0; index < this.queueSize; index++) {
+            const currentUpload = this.__doConcurrentUpload(dataFeeder);
+            this.concurrentUploaders.push(currentUpload);
+        }
+        await Promise.all(this.concurrentUploaders);
+        if (this.abortController.signal.aborted) {
+            throw Object.assign(new Error("Upload aborted."), { name: "AbortError" });
+        }
+        let result;
+        if (this.isMultiPart) {
+            this.uploadedParts.sort((a, b) => a.PartNumber - b.PartNumber);
+            const uploadCompleteParams = {
+                ...this.params,
+                Body: undefined,
+                UploadId: this.uploadId,
+                MultipartUpload: {
+                    Parts: this.uploadedParts,
+                },
+            };
+            result = await this.client.send(new client_s3_1.CompleteMultipartUploadCommand(uploadCompleteParams));
+        }
+        else {
+            result = this.putResponse;
+        }
+        if (this.tags.length) {
+            await this.client.send(new client_s3_1.PutObjectTaggingCommand({
+                ...this.params,
+                Tagging: {
+                    TagSet: this.tags,
+                },
+            }));
+        }
+        return result;
+    }
+    __notifyProgress(progress) {
+        if (this.uploadEvent) {
+            this.emit(this.uploadEvent, progress);
+        }
+    }
+    async __abortTimeout(abortSignal) {
+        return new Promise((resolve, reject) => {
+            abortSignal.onabort = () => {
+                const abortError = new Error("Upload aborted.");
+                abortError.name = "AbortError";
+                reject(abortError);
+            };
+        });
+    }
+    __validateInput() {
+        if (!this.params) {
+            throw new Error(`InputError: Upload requires params to be passed to upload.`);
+        }
+        if (!this.client) {
+            throw new Error(`InputError: Upload requires a AWS client to do uploads with.`);
+        }
+        if (this.partSize < MIN_PART_SIZE) {
+            throw new Error(`EntityTooSmall: Your proposed upload partsize [${this.partSize}] is smaller than the minimum allowed size [${MIN_PART_SIZE}] (5MB)`);
+        }
+        if (this.queueSize < 1) {
+            throw new Error(`Queue size: Must have at least one uploading queue.`);
+        }
+    }
+}
+exports.Upload = Upload;
+
+
+/***/ }),
+
+/***/ 3393:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.byteLength = void 0;
+const runtimeConfig_1 = __nccwpck_require__(3407);
+const byteLength = (input) => {
+    if (input === null || input === undefined)
+        return 0;
+    if (typeof input === "string")
+        input = Buffer.from(input);
+    if (typeof input.byteLength === "number") {
+        return input.byteLength;
+    }
+    else if (typeof input.length === "number") {
+        return input.length;
+    }
+    else if (typeof input.size === "number") {
+        return input.size;
+    }
+    else if (typeof input.path === "string") {
+        try {
+            return runtimeConfig_1.ClientDefaultValues.lstatSync(input.path).size;
+        }
+        catch (error) {
+            return undefined;
+        }
+    }
+    return undefined;
+};
+exports.byteLength = byteLength;
+
+
+/***/ }),
+
+/***/ 6137:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getChunk = void 0;
+const buffer_1 = __nccwpck_require__(4300);
+const stream_1 = __nccwpck_require__(2781);
+const getChunkBuffer_1 = __nccwpck_require__(6990);
+const getChunkStream_1 = __nccwpck_require__(8944);
+const getDataReadable_1 = __nccwpck_require__(4046);
+const getDataReadableStream_1 = __nccwpck_require__(1320);
+const getChunk = (data, partSize) => {
+    if (data instanceof buffer_1.Buffer) {
+        return getChunkBuffer_1.getChunkBuffer(data, partSize);
+    }
+    else if (data instanceof stream_1.Readable) {
+        return getChunkStream_1.getChunkStream(data, partSize, getDataReadable_1.getDataReadable);
+    }
+    else if (data instanceof String || typeof data === "string" || data instanceof Uint8Array) {
+        return getChunkBuffer_1.getChunkBuffer(buffer_1.Buffer.from(data), partSize);
+    }
+    if (typeof data.stream === "function") {
+        return getChunkStream_1.getChunkStream(data.stream(), partSize, getDataReadableStream_1.getDataReadableStream);
+    }
+    else if (data instanceof ReadableStream) {
+        return getChunkStream_1.getChunkStream(data, partSize, getDataReadableStream_1.getDataReadableStream);
+    }
+    else {
+        throw new Error("Body Data is unsupported format, expected data to be one of: string | Uint8Array | Buffer | Readable | ReadableStream | Blob;.");
+    }
+};
+exports.getChunk = getChunk;
+
+
+/***/ }),
+
+/***/ 6990:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getChunkBuffer = void 0;
+async function* getChunkBuffer(data, partSize) {
+    let partNumber = 1;
+    let startByte = 0;
+    let endByte = partSize;
+    while (endByte < data.byteLength) {
+        yield {
+            partNumber,
+            data: data.slice(startByte, endByte),
+        };
+        partNumber += 1;
+        startByte = endByte;
+        endByte = startByte + partSize;
+    }
+    yield {
+        partNumber,
+        data: data.slice(startByte),
+        lastPart: true,
+    };
+}
+exports.getChunkBuffer = getChunkBuffer;
+
+
+/***/ }),
+
+/***/ 8944:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getChunkStream = void 0;
+const buffer_1 = __nccwpck_require__(4300);
+async function* getChunkStream(data, partSize, getNextData) {
+    let partNumber = 1;
+    const currentBuffer = { chunks: [], length: 0 };
+    for await (const datum of getNextData(data)) {
+        currentBuffer.chunks.push(datum);
+        currentBuffer.length += datum.length;
+        while (currentBuffer.length >= partSize) {
+            const dataChunk = currentBuffer.chunks.length > 1 ? buffer_1.Buffer.concat(currentBuffer.chunks) : currentBuffer.chunks[0];
+            yield {
+                partNumber,
+                data: dataChunk.slice(0, partSize),
+            };
+            currentBuffer.chunks = [dataChunk.slice(partSize)];
+            currentBuffer.length = currentBuffer.chunks[0].length;
+            partNumber += 1;
+        }
+    }
+    yield {
+        partNumber,
+        data: buffer_1.Buffer.concat(currentBuffer.chunks),
+        lastPart: true,
+    };
+}
+exports.getChunkStream = getChunkStream;
+
+
+/***/ }),
+
+/***/ 4046:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getDataReadable = void 0;
+const buffer_1 = __nccwpck_require__(4300);
+async function* getDataReadable(data) {
+    for await (const chunk of data) {
+        yield buffer_1.Buffer.from(chunk);
+    }
+}
+exports.getDataReadable = getDataReadable;
+
+
+/***/ }),
+
+/***/ 1320:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getDataReadableStream = void 0;
+const buffer_1 = __nccwpck_require__(4300);
+async function* getDataReadableStream(data) {
+    const reader = data.getReader();
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+                return;
+            yield buffer_1.Buffer.from(value);
+        }
+    }
+    catch (e) {
+        throw e;
+    }
+    finally {
+        reader.releaseLock();
+    }
+}
+exports.getDataReadableStream = getDataReadableStream;
+
+
+/***/ }),
+
+/***/ 3087:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const tslib_1 = __nccwpck_require__(4351);
+tslib_1.__exportStar(__nccwpck_require__(612), exports);
+tslib_1.__exportStar(__nccwpck_require__(3222), exports);
+
+
+/***/ }),
+
+/***/ 3407:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ClientDefaultValues = void 0;
+const fs_1 = __nccwpck_require__(7147);
+const runtimeConfig_shared_1 = __nccwpck_require__(9583);
+exports.ClientDefaultValues = {
+    ...runtimeConfig_shared_1.ClientSharedValues,
+    runtime: "node",
+    lstatSync: fs_1.lstatSync,
+};
+
+
+/***/ }),
+
+/***/ 9583:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ClientSharedValues = void 0;
+exports.ClientSharedValues = {
+    lstatSync: () => { },
+};
+
+
+/***/ }),
+
+/***/ 3222:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+
 /***/ 2884:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -42925,7 +43409,13 @@ function logOutputParameters(syncedFiles) {
     (0,core.setOutput)('modified-keys', syncedFiles.join(','));
 }
 
+;// CONCATENATED MODULE: ./lib/defaults.js
+const defaultConcurrency = 6;
+const defaultLargeFileSizeInMb = 100; // 100mb
+const defaultMultipartUploadPartsInBytes = 10 * (1024 * 1024); // 10mb
+
 ;// CONCATENATED MODULE: ./lib/inputs.js
+
 
 function getInputs() {
     const bucket = (0,core.getInput)('bucket', {
@@ -42964,6 +43454,25 @@ function getInputs() {
         required: false,
         trimWhitespace: true,
     });
+    const _multipartFileSizeMb = parseInt((0,core.getInput)('multipart-file-size-mb', {
+        required: false,
+        trimWhitespace: true,
+    }), 10);
+    const multipartFileSizeMb = isNaN(_multipartFileSizeMb)
+        ? defaultLargeFileSizeInMb
+        : _multipartFileSizeMb;
+    const _multipartChunkBytes = parseInt((0,core.getInput)('multipart-chunk-bytes', {
+        required: false,
+        trimWhitespace: true,
+    }), 10);
+    const multipartChunkBytes = isNaN(_multipartChunkBytes)
+        ? defaultMultipartUploadPartsInBytes
+        : _multipartFileSizeMb;
+    const _concurrency = parseInt((0,core.getInput)('concurrency', {
+        required: false,
+        trimWhitespace: true,
+    }));
+    const concurrency = isNaN(_concurrency) ? defaultConcurrency : _concurrency;
     return {
         bucket,
         region,
@@ -42974,6 +43483,9 @@ function getInputs() {
         action,
         cacheControl,
         acl,
+        multipartFileSizeMb,
+        multipartChunkBytes,
+        concurrency,
     };
 }
 
@@ -42981,14 +43493,78 @@ function getInputs() {
 const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
 ;// CONCATENATED MODULE: external "node:fs"
 const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
-;// CONCATENATED MODULE: external "node:crypto"
-const external_node_crypto_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:crypto");
 // EXTERNAL MODULE: ./node_modules/mime-types/index.js
 var mime_types = __nccwpck_require__(3583);
+;// CONCATENATED MODULE: external "node:crypto"
+const external_node_crypto_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:crypto");
+;// CONCATENATED MODULE: ./node_modules/s3-etag/s3Etag.js
+/**
+ * Generate an S3 ETAG (with multipart support)
+ * An implementation of this algorithm: https://stackoverflow.com/a/19896823/492325
+ * Author: Richard Willis <willis.rh@gmail.com>
+ */
+
+
+const defaultPartSizeInBytes = (/* unused pure expression or super */ null && (5 * 1024 * 1024)); // 5MB
+function md5(contents) {
+    return external_node_crypto_namespaceObject.createHash('md5').update(contents).digest('hex');
+}
+function generateETag(filePath, partSizeInBytes = 0) {
+    if (partSizeInBytes === 0) {
+        return md5(external_node_fs_namespaceObject.readFileSync(filePath));
+    }
+    const { size: fileSizeInBytes } = external_node_fs_namespaceObject.statSync(filePath);
+    let parts = Math.floor(fileSizeInBytes / partSizeInBytes);
+    if (fileSizeInBytes % partSizeInBytes > 0) {
+        parts += 1;
+    }
+    const fileDescriptor = external_node_fs_namespaceObject.openSync(filePath, 'r');
+    let totalMd5 = '';
+    for (let part = 0; part < parts; part++) {
+        const skipBytes = partSizeInBytes * part;
+        const totalBytesLeft = fileSizeInBytes - skipBytes;
+        const bytesToRead = Math.min(totalBytesLeft, partSizeInBytes);
+        const buffer = Buffer.alloc(bytesToRead);
+        external_node_fs_namespaceObject.readSync(fileDescriptor, buffer, 0, bytesToRead, skipBytes);
+        totalMd5 += md5(buffer);
+    }
+    const combinedHash = md5(Buffer.from(totalMd5, 'hex'));
+    const etag = `${combinedHash}-${parts}`;
+    return etag;
+}
+
+;// CONCATENATED MODULE: ./node_modules/s3-etag/index.js
+
+
+// EXTERNAL MODULE: ./node_modules/@aws-sdk/lib-storage/dist-cjs/index.js
+var lib_storage_dist_cjs = __nccwpck_require__(3087);
 // EXTERNAL MODULE: ./node_modules/@actions/glob/lib/glob.js
 var glob = __nccwpck_require__(8090);
 // EXTERNAL MODULE: ./node_modules/minimatch/minimatch.js
 var minimatch = __nccwpck_require__(3973);
+;// CONCATENATED MODULE: ./lib/AsyncQueue.js
+class AsyncQueue {
+    constructor(concurrency, queue) {
+        this.concurrency = concurrency;
+        this.operationQueue = [];
+        this.inProgress = 0;
+        this.operationQueue = queue.slice();
+    }
+    async process() {
+        const amount = Math.min(this.concurrency - this.inProgress, this.operationQueue.length);
+        if (amount === 0) {
+            return;
+        }
+        const batch = this.operationQueue.splice(0, amount);
+        this.inProgress += batch.length;
+        await Promise.all(batch.map((operation) => operation().then(() => {
+            this.inProgress--;
+            return this.process();
+        })));
+        return await this.process();
+    }
+}
+
 ;// CONCATENATED MODULE: ./lib/s3.js
 
 
@@ -42999,6 +43575,11 @@ var minimatch = __nccwpck_require__(3973);
 
 
 
+
+
+function getTimeString(time) {
+    return `${time[0]}s:${(time[1] / 1000000).toFixed(0)}ms`;
+}
 async function getObjectMetadata(client, s3BucketName, key) {
     try {
         return await client.send(new dist_cjs.HeadObjectCommand({
@@ -43039,23 +43620,48 @@ async function uploadFile(client, s3BucketName, key, absoluteFilePath, cacheCont
         Body: external_node_fs_namespaceObject.createReadStream(absoluteFilePath),
     }));
 }
-function getETag(absoluteFilePath) {
-    const fileContents = external_node_fs_namespaceObject.readFileSync(absoluteFilePath, 'utf-8');
-    const base64ETag = Buffer.from(external_node_crypto_namespaceObject.createHash('md5').update(fileContents).digest('hex'), 'base64').toString('base64');
-    return JSON.stringify(base64ETag);
+async function uploadMultipartFile(client, s3BucketName, key, absoluteFilePath, cacheControl, contentType, acl, partSizeInBytes, concurrency) {
+    const startTime = process.hrtime();
+    const body = external_node_fs_namespaceObject.createReadStream(absoluteFilePath);
+    const upload = new lib_storage_dist_cjs.Upload({
+        client,
+        queueSize: concurrency,
+        partSize: partSizeInBytes,
+        leavePartsOnError: false,
+        params: {
+            Key: key,
+            Bucket: s3BucketName,
+            Body: body,
+            CacheControl: cacheControl,
+            ContentType: contentType,
+            ACL: acl,
+        },
+    });
+    (0,core.info)(`Started multipart upload for ${key} using ${partSizeInBytes / 1024 / 1024}MB chunks and ${concurrency} concurrent processes, please wait...`);
+    upload.on('httpUploadProgress', (progress) => {
+        const endTime = process.hrtime(startTime);
+        const percentLoaded = progress.loaded && progress.total
+            ? Math.round((progress.loaded / progress.total) * 100)
+            : 0;
+        (0,core.info)(`${key}: loaded ${percentLoaded}% (${progress.loaded} of ${progress.total}) (part ${progress.part}) (total time elapsed: ${getTimeString(endTime)})`);
+    });
+    return upload.done();
 }
-async function maybeUploadFile(client, s3BucketName, absoluteFilePath, key, cacheControl, acl) {
-    const extension = external_node_path_namespaceObject.extname(absoluteFilePath).toLowerCase();
-    const contentType = getContentTypeForExtension(extension);
-    const eTag = getETag(absoluteFilePath);
+function getETag(absoluteFilePath, partSizeInBytes) {
+    const etag = generateETag(absoluteFilePath, partSizeInBytes);
+    return JSON.stringify(etag);
+}
+async function isMultipartFile(absoluteFilePath, partSizeInBytes) {
+    const { size: sizeInBytes } = await external_node_fs_namespaceObject.promises.stat(absoluteFilePath);
+    return sizeInBytes >= partSizeInBytes;
+}
+async function shouldUploadFile(client, s3BucketName, absoluteFilePath, key, cacheControl, contentType, multipart, partSizeInBytes) {
+    const eTag = await getETag(absoluteFilePath, multipart ? partSizeInBytes : 0);
     const metadata = await getObjectMetadata(client, s3BucketName, key);
     const shouldUploadFile = !metadata ||
         metadata.CacheControl !== cacheControl ||
         metadata.ContentType !== contentType ||
         metadata.ETag !== eTag;
-    if (shouldUploadFile) {
-        await uploadFile(client, s3BucketName, key, absoluteFilePath, cacheControl, contentType, acl);
-    }
     return shouldUploadFile;
 }
 async function getFilesFromSrcDir(srcDir, filesGlob) {
@@ -43067,26 +43673,65 @@ async function getFilesFromSrcDir(srcDir, filesGlob) {
     });
     return globber.glob();
 }
-async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, stripExtensionGlob, cacheControl, acl) {
+async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, stripExtensionGlob, cacheControl, acl, multipartFileSizeMb, multipartChunkBytes, concurrency) {
+    const startTime = process.hrtime();
     if (!workspace) {
         throw new Error('GITHUB_WORKSPACE is not defined');
     }
+    (0,core.info)(`Syncing files from ${srcDir} with ${concurrency} concurrent processes`);
     const rootDir = external_node_path_namespaceObject.join(workspace, srcDir);
     const files = await getFilesFromSrcDir(srcDir, filesGlob);
-    const uploadedKeys = [];
-    for (const file of files) {
-        const key = getObjectKeyFromFilePath(rootDir, file, prefix, stripExtensionGlob);
-        const uploaded = await maybeUploadFile(client, s3BucketName, file, key, cacheControl, acl);
-        if (uploaded) {
-            (0,core.info)(`Synced ${key}`);
-            uploadedKeys.push(key);
+    const filesToUpload = [];
+    await new AsyncQueue(concurrency, files.map((file) => async () => {
+        const s3Key = getObjectKeyFromFilePath(rootDir, file, prefix, stripExtensionGlob);
+        const extension = external_node_path_namespaceObject.extname(file).toLowerCase();
+        const contentType = getContentTypeForExtension(extension);
+        const multipart = await isMultipartFile(file, multipartFileSizeMb * 1024 * 1024);
+        const shouldUpload = await shouldUploadFile(client, s3BucketName, file, s3Key, cacheControl, contentType, multipart, multipartChunkBytes);
+        if (shouldUpload) {
+            filesToUpload.push({
+                absoluteFilePath: file,
+                key: s3Key,
+                contentType,
+                multipart,
+            });
         }
         else {
-            (0,core.info)(`Skipped ${key} (no change)`);
+            (0,core.info)(`Skipped ${s3Key} (ETAG, ContentType & CacheControl match)`);
         }
-    }
-    (0,core.info)(`Synced ${uploadedKeys.length} files with cache-control: ${cacheControl}`);
-    return uploadedKeys;
+    })).process();
+    const smallFiles = filesToUpload.filter((file) => !file.multipart);
+    const multipartFiles = filesToUpload.filter((file) => file.multipart);
+    (0,core.info)(`Found ${smallFiles.length} small files`);
+    (0,core.info)(`Found ${multipartFiles.length} multipart files`);
+    /**
+     * Upload small files in parallel
+     */
+    const uploadSmallFilesQueue = await new AsyncQueue(concurrency, smallFiles.map((file) => async () => {
+        const startTime = process.hrtime();
+        await uploadFile(client, s3BucketName, file.key, file.absoluteFilePath, cacheControl, file.contentType, acl);
+        const endTime = process.hrtime(startTime);
+        (0,core.info)(`Synced ${file.key} (${getTimeString(endTime)}) (${uploadSmallFilesQueue.inProgress} ops in progress)`);
+    }));
+    await uploadSmallFilesQueue.process();
+    /**
+     * Upload large files one at a time, as we're using multipart
+     * uploads to upload parts in parallel
+     */
+    const uploadMultipartFilesQueue = new AsyncQueue(1, multipartFiles.map((file) => async () => {
+        const startTime = process.hrtime();
+        await uploadMultipartFile(client, s3BucketName, file.key, file.absoluteFilePath, cacheControl, file.contentType, acl, multipartChunkBytes, concurrency);
+        const endTime = process.hrtime(startTime);
+        (0,core.info)(`Synced ${file.key} (${getTimeString(endTime)})`);
+    }));
+    await uploadMultipartFilesQueue.process();
+    const endTime = process.hrtime(startTime);
+    (0,core.info)(`Synced ${smallFiles.length} small files`);
+    (0,core.info)(`Synced ${multipartFiles.length} multipart files`);
+    (0,core.info)(`✅ Synced total ${smallFiles.length + multipartFiles.length} files`);
+    (0,core.info)(`Execution time: ${getTimeString(endTime)}`);
+    const getFileKey = ({ key }) => key;
+    return smallFiles.map(getFileKey).concat(multipartFiles.map(getFileKey));
 }
 async function emptyS3Directory(client, s3BucketName, prefix, initialObjectsCleaned = []) {
     var _a;
@@ -43125,7 +43770,7 @@ async function run() {
             region: inputs.region,
         });
         if (inputs.action == 'sync') {
-            const syncedFiles = await syncFilesToS3(s3Client, inputs.bucket, inputs.srcDir, inputs.filesGlob, inputs.prefix, inputs.stripExtensionGlob, inputs.cacheControl, inputs.acl);
+            const syncedFiles = await syncFilesToS3(s3Client, inputs.bucket, inputs.srcDir, inputs.filesGlob, inputs.prefix, inputs.stripExtensionGlob, inputs.cacheControl, inputs.acl, inputs.multipartFileSizeMb, inputs.multipartChunkBytes, inputs.concurrency);
             logOutputParameters(syncedFiles);
         }
         else if (inputs.action === 'clean') {
