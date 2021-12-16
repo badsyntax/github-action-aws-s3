@@ -4,23 +4,18 @@
 [![Sync S3](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/sync-s3.yml/badge.svg)](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/sync-s3.yml)
 [![CodeQL](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/badsyntax/github-action-aws-s3/actions/workflows/codeql-analysis.yml)
 
-A GitHub Action to sync files to S3 based on contents hash.
-
-## Motivation
-
-The `aws cli` syncs files based on file modified times or file size. This approach is not ideal when syncing in CI or when build hashes might change but file size is unchanged.
-
-This Action compares the md5 hash against the uploaded file, and if there's a match it will not sync the file. It also provides additional feature over the `aws cli`.
+A GitHub Action to sync files to S3 based.
 
 ## Features
 
-- Sync based on contents hash
+- Sync based on contents hash (includes accurate ETAG comparisons, even for multipart uploads)
+- Parallel uploads with configurable concurrency & multipart chunk sizes
 - Bucket prefixes
 - Clean an object path (remove a "directory")
-- Custom cache-control headers
+- Custom Cache-Control headers
 - Glob path patterns
 - Custom ACL
-- Automatic content-type detection
+- Automatic Content-Type detection
 - Strip extension from filename
 
 ## Getting Started
@@ -78,17 +73,20 @@ jobs:
 
 ## Action Inputs
 
-| Name                              | Description                                                                                                                                               | Example                             |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `bucket`                          | The name of the S3 bucket                                                                                                                                 | `example-bucket-us-east-1`          |
-| `action`                          | The action to perform. Accepted values: `sync` or `clean`                                                                                                 | `sync`                              |
-| `src-dir`                         | Source directory of local files to sync (if using the sync action)                                                                                        | `./src`                             |
-| `files-glob`                      | Glob pattern for source files to sync to S3 (if using the sync action)                                                                                    | `**/*.html`                         |
-| `aws-region`                      | The AWS region                                                                                                                                            | `us-east-1`                         |
-| `cache-control`                   | Cache-control headers                                                                                                                                     | `public,max-age=31536000,immutable` |
-| `prefix` (optional)               | The prefix for the uploaded object                                                                                                                        | `custom/folder`                     |
-| `strip-extension-glob` (optional) | Glob pattern to strip extension (if using the sync action)                                                                                                | `**/**.html`                        |
-| `acl` (optional)                  | Access control list (options: `authenticated-read, aws-exec-read, bucket-owner-full-control, bucket-owner-read, private, public-read, public-read-write`) | `private`                           |
+| Name                                | Description                                                                                                                                               | Example                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `bucket`                            | The name of the S3 bucket                                                                                                                                 | `example-bucket-us-east-1`          |
+| `action`                            | The action to perform. Accepted values: `sync` or `clean`                                                                                                 | `sync`                              |
+| `src-dir`                           | Source directory of local files to sync (if using the sync action)                                                                                        | `./src`                             |
+| `files-glob`                        | Glob pattern for source files to sync to S3 (if using the sync action)                                                                                    | `**/*.html`                         |
+| `aws-region`                        | The AWS region                                                                                                                                            | `us-east-1`                         |
+| `cache-control`                     | Cache-control headers                                                                                                                                     | `public,max-age=31536000,immutable` |
+| `prefix` (optional)                 | The prefix for the uploaded object                                                                                                                        | `custom/folder`                     |
+| `strip-extension-glob` (optional)   | Glob pattern to strip extension (if using the sync action)                                                                                                | `**/**.html`                        |
+| `acl` (optional)                    | Access control list (options: `authenticated-read, aws-exec-read, bucket-owner-full-control, bucket-owner-read, private, public-read, public-read-write`) | `private`                           |
+| `multipart-file-size-mb` (optional) | The minimum file size, in megabytes, for which to upload files using multipart. The default is `100`                                                      | `100`                               |
+| `multipart-chunk-bytes` (optional)  | The chunk size, in bytes, to upload multipart file parts in. The default is `10485760` (10MB)                                                             | `10485760`                          |
+| `concurrency` (optional)            | How many processes to perform at once. The default is `6`                                                                                                 | `6`                                 |
 
 ## Action Outputs
 
@@ -96,10 +94,17 @@ jobs:
 | --------------- | ------------------------------------------------------------------------- | ------------------------- |
 | `modified-keys` | A comma separated list of modified object keys (either synced or removed) | `file1,folder1/file2.ext` |
 
-## Related GitHub Actions
+## Related Projects
 
 - [badsyntax/github-action-aws-cloudfront](https://github.com/badsyntax/github-action-aws-cloudfront)
 - [badsyntax/github-action-aws-cloudformation](https://github.com/badsyntax/github-action-aws-cloudformation)
+- [badsyntax/s3-etag](https://github.com/badsyntax/s3-etag)
+
+## Motivation
+
+The `aws cli` syncs files based on file modified times or file size. This approach is not ideal when syncing in CI or when build hashes might change but file size is unchanged.
+
+This Action compares the md5 hash against the uploaded file, and if there's a match it will not sync the file.
 
 ## Debugging
 

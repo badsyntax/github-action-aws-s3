@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import crypto from 'node:crypto';
 import mime from 'mime-types';
+import { generateETag } from 's3-etag';
 import {
   DeleteObjectsCommand,
   HeadObjectCommand,
@@ -11,14 +11,21 @@ import {
   PutObjectCommandOutput,
   PutObjectRequest,
   S3Client,
+  ServiceOutputTypes,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import glob from '@actions/glob';
 import { info } from '@actions/core';
 import minimatch from 'minimatch';
 
 import { workspace } from './github.js';
+import { AsyncQueue } from './AsyncQueue.js';
 
 export type S3ObjectPrefix = string;
+
+function getTimeString(time: [number, number]) {
+  return `${time[0]}s:${(time[1] / 1000000).toFixed(0)}ms`;
+}
 
 export async function getObjectMetadata(
   client: S3Client,
@@ -84,26 +91,84 @@ async function uploadFile(
   );
 }
 
-function getETag(absoluteFilePath: string): string {
-  const fileContents = fs.readFileSync(absoluteFilePath, 'utf-8');
-  const base64ETag = Buffer.from(
-    crypto.createHash('md5').update(fileContents).digest('hex'),
-    'base64'
-  ).toString('base64');
-  return JSON.stringify(base64ETag);
+async function uploadMultipartFile(
+  client: S3Client,
+  s3BucketName: string,
+  key: string,
+  absoluteFilePath: string,
+  cacheControl: string,
+  contentType: string,
+  acl: PutObjectRequest['ACL'],
+  partSizeInBytes: number,
+  concurrency: number
+): Promise<ServiceOutputTypes> {
+  const startTime = process.hrtime();
+
+  const body = fs.createReadStream(absoluteFilePath);
+
+  const upload = new Upload({
+    client,
+    queueSize: concurrency,
+    partSize: partSizeInBytes,
+    leavePartsOnError: false,
+    params: {
+      Key: key,
+      Bucket: s3BucketName,
+      Body: body,
+      CacheControl: cacheControl,
+      ContentType: contentType,
+      ACL: acl,
+    },
+  });
+
+  info(
+    `Started multipart upload for ${key} using ${
+      partSizeInBytes / 1024 / 1024
+    }MB chunks and ${concurrency} concurrent processes, please wait...`
+  );
+
+  upload.on('httpUploadProgress', (progress) => {
+    const endTime = process.hrtime(startTime);
+    const percentLoaded =
+      progress.loaded && progress.total
+        ? Math.round((progress.loaded / progress.total) * 100)
+        : 0;
+    info(
+      `${key}: loaded ${percentLoaded}% (${progress.loaded} of ${
+        progress.total
+      }) (part ${progress.part}) (total time elapsed: ${getTimeString(
+        endTime
+      )})`
+    );
+  });
+
+  return upload.done();
 }
 
-export async function maybeUploadFile(
+function getETag(absoluteFilePath: string, partSizeInBytes: number): string {
+  const etag = generateETag(absoluteFilePath, partSizeInBytes);
+  return JSON.stringify(etag);
+}
+
+export async function isMultipartFile(
+  absoluteFilePath: string,
+  partSizeInBytes: number
+) {
+  const { size: sizeInBytes } = await fs.promises.stat(absoluteFilePath);
+  return sizeInBytes >= partSizeInBytes;
+}
+
+export async function shouldUploadFile(
   client: S3Client,
   s3BucketName: string,
   absoluteFilePath: string,
   key: string,
   cacheControl: string,
-  acl: PutObjectRequest['ACL']
-): Promise<boolean> {
-  const extension = path.extname(absoluteFilePath).toLowerCase();
-  const contentType = getContentTypeForExtension(extension);
-  const eTag = getETag(absoluteFilePath);
+  contentType: string,
+  multipart: boolean,
+  partSizeInBytes: number
+) {
+  const eTag = await getETag(absoluteFilePath, multipart ? partSizeInBytes : 0);
   const metadata = await getObjectMetadata(client, s3BucketName, key);
 
   const shouldUploadFile =
@@ -112,17 +177,6 @@ export async function maybeUploadFile(
     metadata.ContentType !== contentType ||
     metadata.ETag !== eTag;
 
-  if (shouldUploadFile) {
-    await uploadFile(
-      client,
-      s3BucketName,
-      key,
-      absoluteFilePath,
-      cacheControl,
-      contentType,
-      acl
-    );
-  }
   return shouldUploadFile;
 }
 
@@ -139,6 +193,13 @@ export async function getFilesFromSrcDir(
   return globber.glob();
 }
 
+type FileToUpload = {
+  absoluteFilePath: string;
+  key: string;
+  contentType: string;
+  multipart: boolean;
+};
+
 export async function syncFilesToS3(
   client: S3Client,
   s3BucketName: string,
@@ -147,40 +208,133 @@ export async function syncFilesToS3(
   prefix: S3ObjectPrefix | string,
   stripExtensionGlob: string,
   cacheControl: string,
-  acl: PutObjectRequest['ACL']
+  acl: PutObjectRequest['ACL'],
+  multipartFileSizeMb: number,
+  multipartChunkBytes: number,
+  concurrency: number
 ): Promise<string[]> {
+  const startTime = process.hrtime();
+
   if (!workspace) {
     throw new Error('GITHUB_WORKSPACE is not defined');
   }
+  info(`Syncing files from ${srcDir} with ${concurrency} concurrent processes`);
+
   const rootDir = path.join(workspace, srcDir);
   const files = await getFilesFromSrcDir(srcDir, filesGlob);
-  const uploadedKeys: string[] = [];
-  for (const file of files) {
-    const key = getObjectKeyFromFilePath(
-      rootDir,
-      file,
-      prefix,
-      stripExtensionGlob
-    );
-    const uploaded = await maybeUploadFile(
-      client,
-      s3BucketName,
-      file,
-      key,
-      cacheControl,
-      acl
-    );
-    if (uploaded) {
-      info(`Synced ${key}`);
-      uploadedKeys.push(key);
-    } else {
-      info(`Skipped ${key} (no change)`);
-    }
-  }
-  info(
-    `Synced ${uploadedKeys.length} files with cache-control: ${cacheControl}`
+
+  const filesToUpload: FileToUpload[] = [];
+
+  await new AsyncQueue(
+    concurrency,
+    files.map((file) => async () => {
+      const s3Key = getObjectKeyFromFilePath(
+        rootDir,
+        file,
+        prefix,
+        stripExtensionGlob
+      );
+      const extension = path.extname(file).toLowerCase();
+      const contentType = getContentTypeForExtension(extension);
+
+      const multipart = await isMultipartFile(
+        file,
+        multipartFileSizeMb * 1024 * 1024
+      );
+
+      const shouldUpload = await shouldUploadFile(
+        client,
+        s3BucketName,
+        file,
+        s3Key,
+        cacheControl,
+        contentType,
+        multipart,
+        multipartChunkBytes
+      );
+
+      if (shouldUpload) {
+        filesToUpload.push({
+          absoluteFilePath: file,
+          key: s3Key,
+          contentType,
+          multipart,
+        });
+      } else {
+        info(`Skipped ${s3Key} (ETAG, ContentType & CacheControl match)`);
+      }
+    })
+  ).process();
+
+  const smallFiles = filesToUpload.filter((file) => !file.multipart);
+  const multipartFiles = filesToUpload.filter((file) => file.multipart);
+
+  info(`Found ${smallFiles.length} small files`);
+  info(`Found ${multipartFiles.length} multipart files`);
+
+  /**
+   * Upload small files in parallel
+   */
+  const uploadSmallFilesQueue = await new AsyncQueue(
+    concurrency,
+    smallFiles.map((file) => async () => {
+      const startTime = process.hrtime();
+      await uploadFile(
+        client,
+        s3BucketName,
+        file.key,
+        file.absoluteFilePath,
+        cacheControl,
+        file.contentType,
+        acl
+      );
+      const endTime = process.hrtime(startTime);
+      info(
+        `Synced ${file.key} (${getTimeString(endTime)}) (${
+          uploadSmallFilesQueue.inProgress
+        } ops in progress)`
+      );
+    })
   );
-  return uploadedKeys;
+
+  await uploadSmallFilesQueue.process();
+
+  /**
+   * Upload large files one at a time, as we're using multipart
+   * uploads to upload parts in parallel
+   */
+  const uploadMultipartFilesQueue = new AsyncQueue(
+    1,
+    multipartFiles.map((file) => async () => {
+      const startTime = process.hrtime();
+      await uploadMultipartFile(
+        client,
+        s3BucketName,
+        file.key,
+        file.absoluteFilePath,
+        cacheControl,
+        file.contentType,
+        acl,
+        multipartChunkBytes,
+        concurrency
+      );
+      const endTime = process.hrtime(startTime);
+      info(`Synced ${file.key} (${getTimeString(endTime)})`);
+    })
+  );
+
+  await uploadMultipartFilesQueue.process();
+
+  const endTime = process.hrtime(startTime);
+
+  info(`Synced ${smallFiles.length} small files`);
+  info(`Synced ${multipartFiles.length} multipart files`);
+  info(`✅ Synced total ${smallFiles.length + multipartFiles.length} files`);
+
+  info(`Execution time: ${getTimeString(endTime)}`);
+
+  const getFileKey = ({ key }: FileToUpload) => key;
+  return smallFiles.map(getFileKey).concat(multipartFiles.map(getFileKey));
 }
 
 export async function emptyS3Directory(

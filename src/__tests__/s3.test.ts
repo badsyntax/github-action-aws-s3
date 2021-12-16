@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, it, expect } from '@jest/globals';
-import { getFilesFromSrcDir, getObjectKeyFromFilePath } from '../s3';
+import { getObjectKeyFromFilePath, getFilesFromSrcDir } from '../s3';
 
 describe('getObjectKeyFromFilePath', () => {
   it('should generate the key', () => {
