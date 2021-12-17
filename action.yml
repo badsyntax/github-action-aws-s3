@@ -1,4 +1,4 @@
-name: 'AWS S3 Actions'
+name: 'AWS S3 Sync & Clean'
 description: 'Perform actions on a S3 bucket like sync or clean files. Includes accurate ETAG comparisons and parallel uploads with configurable concurrency & multipart chunk sizes.'
 author: 'Richard Willis <willis.rh@gmail.com>'
 branding:
