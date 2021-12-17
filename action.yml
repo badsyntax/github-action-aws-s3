@@ -1,5 +1,5 @@
 name: 'AWS S3 Sync & Clean'
-description: 'Perform actions on a S3 bucket like sync or clean files. Includes accurate ETAG comparisons and parallel uploads with configurable concurrency & multipart chunk sizes.'
+description: 'Sync or clean an S3 bucket using parallel uploads and intelligent ETAG comparisons (even for multipart files).'
 author: 'Richard Willis <willis.rh@gmail.com>'
 branding:
   icon: 'upload-cloud'
