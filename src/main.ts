@@ -27,7 +27,8 @@ export async function run(): Promise<void> {
         inputs.acl,
         inputs.multipartFileSizeMb,
         inputs.multipartChunkBytes,
-        inputs.concurrency
+        inputs.concurrency,
+        inputs.syncStrategy
       );
       logOutputParameters(syncedFiles);
     } else if (inputs.action === 'clean') {

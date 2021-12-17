@@ -3,6 +3,7 @@ import {
   defaultConcurrency,
   defaultLargeFileSizeInMb,
   defaultMultipartUploadPartsInBytes,
+  defaultSyncStrategy,
 } from './defaults.js';
 
 export function getInputs() {
@@ -84,6 +85,12 @@ export function getInputs() {
 
   const concurrency = isNaN(_concurrency) ? defaultConcurrency : _concurrency;
 
+  const syncStrategy =
+    getInput('sync-strategy', {
+      required: false,
+      trimWhitespace: true,
+    }) || defaultSyncStrategy;
+
   return {
     bucket,
     region,
@@ -97,5 +104,6 @@ export function getInputs() {
     multipartFileSizeMb,
     multipartChunkBytes,
     concurrency,
+    syncStrategy,
   };
 }
