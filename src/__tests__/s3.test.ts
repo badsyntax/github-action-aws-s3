@@ -36,6 +36,16 @@ describe('getObjectKeyFromFilePath', () => {
     const files = await getFilesFromSrcDir(srcDir, '**/*.html');
     expect(files).toEqual([`${rootDir}/blog.html`, `${rootDir}/index.html`]);
   });
+
+  it('should find files using srcDir and filesGlob with brace expansion', async () => {
+    const srcDir = './test-fixtures';
+    const rootDir = path.join(path.resolve(process.cwd()), srcDir);
+    const files = await getFilesFromSrcDir(srcDir, '{css,site-assets}/**/*');
+    expect(files).toEqual([
+      `${rootDir}/css/styles.css`,
+      `${rootDir}/site-assets/script.js`,
+    ]);
+  });
 });
 
 describe('shouldUploadFile', () => {

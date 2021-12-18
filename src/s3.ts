@@ -1,6 +1,8 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import util from 'node:util';
 import mime from 'mime-types';
+import glob from 'glob';
 import { generateETag } from 's3-etag';
 import {
   DeleteObjectsCommand,
@@ -14,8 +16,7 @@ import {
   ServiceOutputTypes,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import glob from '@actions/glob';
-import { debug, error, info } from '@actions/core';
+import { debug, info } from '@actions/core';
 import minimatch from 'minimatch';
 
 import { workspace } from './github.js';
@@ -234,10 +235,7 @@ export async function getFilesFromSrcDir(
   if (srcDir.trim() === '' || filesGlob.trim() === '') {
     throw new Error('srcDir and filesGlob must not be empty');
   }
-  const globber = await glob.create(`${srcDir}/${filesGlob}`, {
-    matchDirectories: false,
-  });
-  return globber.glob();
+  return util.promisify(glob)(filesGlob, { cwd: srcDir, absolute: true });
 }
 
 type FileToUpload = {
