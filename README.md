@@ -109,6 +109,8 @@ If you need to see more verbose logs you can set `ACTIONS_STEP_DEBUG` to `true` 
 - [badsyntax/github-action-aws-cloudfront](https://github.com/badsyntax/github-action-aws-cloudfront)
 - [badsyntax/github-action-aws-cloudformation](https://github.com/badsyntax/github-action-aws-cloudformation)
 - [badsyntax/s3-etag](https://github.com/badsyntax/s3-etag)
+- [badsyntax/github-action-issue-comment](https://github.com/badsyntax/github-action-issue-comment)
+- [badsyntax/github-action-render-template](https://github.com/badsyntax/github-action-render-template)
 
 ## Motivation
 
