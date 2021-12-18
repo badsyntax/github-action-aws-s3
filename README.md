@@ -104,6 +104,10 @@ Check the Action output for logs.
 
 If you need to see more verbose logs you can set `ACTIONS_STEP_DEBUG` to `true` as an Action Secret.
 
+## Motivation
+
+The [`aws s3 sync`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3/sync.html) cli command syncs files based on modified times or file size, but this approach is not appropriate in situations where build hashes might change but file size is unchanged. This action provides a flexible and configuration sync strategy, as well as additional features like stripping file extensions and cleaning a bucket path.
+
 ## Related Projects
 
 - [badsyntax/s3-etag](https://github.com/badsyntax/s3-etag)
@@ -111,10 +115,6 @@ If you need to see more verbose logs you can set `ACTIONS_STEP_DEBUG` to `true` 
 - [badsyntax/github-action-aws-cloudformation](https://github.com/badsyntax/github-action-aws-cloudformation)
 - [badsyntax/github-action-issue-comment](https://github.com/badsyntax/github-action-issue-comment)
 - [badsyntax/github-action-render-template](https://github.com/badsyntax/github-action-render-template)
-
-## Motivation
-
-The [`aws s3 sync`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3/sync.html) cli command syncs files based on modified times or file size, but this approach is not appropriate in situations where build hashes might change but file size is unchanged. This action provides a flexible and configuration sync strategy, as well as additional features like stripping file extensions and cleaning a bucket path.
 
 ## License
 
