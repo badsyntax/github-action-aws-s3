@@ -44,6 +44,7 @@ describe('shouldUploadFile', () => {
     srcDir,
     'index.html'
   );
+  const s3Key = 'index.html';
   const cacheControl = 'no-cache';
   const contentType = 'text/html';
   const isMultipart = false;
@@ -56,6 +57,7 @@ describe('shouldUploadFile', () => {
     const metadata = undefined;
     const shouldUpload = await shouldUploadFile(
       absoluteFilePath,
+      s3Key,
       cacheControl,
       contentType,
       isMultipart,
@@ -74,6 +76,7 @@ describe('shouldUploadFile', () => {
 
     const shouldUpload = await shouldUploadFile(
       absoluteFilePath,
+      s3Key,
       cacheControl,
       contentType,
       isMultipart,
@@ -108,6 +111,7 @@ describe('shouldUploadFile', () => {
       expect(
         await shouldUploadFile(
           absoluteFilePath,
+          s3Key,
           cacheControl,
           contentType,
           isMultipart,
@@ -124,6 +128,7 @@ describe('shouldUploadFile', () => {
       expect(
         await shouldUploadFile(
           absoluteFilePath,
+          s3Key,
           cacheControl,
           contentType,
           isMultipart,
@@ -143,6 +148,7 @@ describe('shouldUploadFile', () => {
       expect(
         await shouldUploadFile(
           absoluteFilePath,
+          s3Key,
           cacheControl,
           contentType,
           isMultipart,
@@ -162,6 +168,7 @@ describe('shouldUploadFile', () => {
       expect(
         await shouldUploadFile(
           absoluteFilePath,
+          s3Key,
           cacheControl,
           contentType,
           isMultipart,
@@ -183,6 +190,7 @@ describe('shouldUploadFile', () => {
       expect(
         await shouldUploadFile(
           absoluteFilePath,
+          s3Key,
           cacheControl,
           contentType,
           isMultipart,
@@ -202,6 +210,7 @@ describe('shouldUploadFile', () => {
       expect(
         await shouldUploadFile(
           absoluteFilePath,
+          s3Key,
           cacheControl,
           contentType,
           isMultipart,
