@@ -44542,7 +44542,7 @@ async function getObjectMetadata(client, s3BucketName, key) {
         }));
     }
     catch (e) {
-        (0,core.debug)(`Unable to get HEAD Metadata for object key ${key} (likely it doesn't exist)`);
+        (0,core.debug)(`Unable to get HEAD Metadata for object key ${key} (likely it does not exist)`);
         return undefined;
     }
 }
@@ -44654,7 +44654,11 @@ async function getFilesFromSrcDir(srcDir, filesGlob) {
     if (srcDir.trim() === '' || filesGlob.trim() === '') {
         throw new Error('srcDir and filesGlob must not be empty');
     }
-    return external_node_util_namespaceObject.promisify(glob)(filesGlob, { cwd: srcDir, absolute: true });
+    return external_node_util_namespaceObject.promisify(glob)(filesGlob, {
+        cwd: srcDir,
+        absolute: true,
+        nodir: true,
+    });
 }
 function getFilesPlural(isPlural) {
     return isPlural ? 'files' : 'file';

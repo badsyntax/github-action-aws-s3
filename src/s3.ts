@@ -42,7 +42,7 @@ export async function getObjectMetadata(
     );
   } catch (e) {
     debug(
-      `Unable to get HEAD Metadata for object key ${key} (likely it doesn't exist)`
+      `Unable to get HEAD Metadata for object key ${key} (likely it does not exist)`
     );
     return undefined;
   }
@@ -235,7 +235,11 @@ export async function getFilesFromSrcDir(
   if (srcDir.trim() === '' || filesGlob.trim() === '') {
     throw new Error('srcDir and filesGlob must not be empty');
   }
-  return util.promisify(glob)(filesGlob, { cwd: srcDir, absolute: true });
+  return util.promisify(glob)(filesGlob, {
+    cwd: srcDir,
+    absolute: true,
+    nodir: true,
+  });
 }
 
 type FileToUpload = {

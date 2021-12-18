@@ -35,6 +35,7 @@
     "etag",
     "globber",
     "maxage",
+    "nodir",
     "richardwillis",
     "vars"
   ],
