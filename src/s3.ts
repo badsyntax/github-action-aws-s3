@@ -40,7 +40,9 @@ export async function getObjectMetadata(
       })
     );
   } catch (e) {
-    error(`Unable to get HEAD Metadata for object key ${key}`);
+    debug(
+      `Unable to get HEAD Metadata for object key ${key} (likely it doesn't exist)`
+    );
     return undefined;
   }
 }
