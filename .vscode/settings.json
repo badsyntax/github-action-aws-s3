@@ -27,8 +27,10 @@
   "files.trimTrailingWhitespace": true,
   "cSpell.language": "en-GB",
   "cSpell.words": [
+    "Autobuild",
     "badsyntax",
     "Behavior",
+    "codeql",
     "color",
     "etag",
     "globber",

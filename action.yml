@@ -32,8 +32,6 @@ inputs:
       ETag
       ContentType
       CacheControl
-      LastModified
-      ContentLength
     description: 'A newline-separated list of criteria to define the sync strategy. Criteria include: ETag, ContentType, CacheControl, LastModified, ContentLength'
   strip-extension-glob:
     require: false

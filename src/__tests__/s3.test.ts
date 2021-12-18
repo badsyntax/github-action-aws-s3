@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, it, expect } from '@jest/globals';
+import type { HeadObjectCommandOutput } from '@aws-sdk/client-s3';
 import {
   getObjectKeyFromFilePath,
   getFilesFromSrcDir,
   shouldUploadFile,
-} from '../s3';
-import { HeadObjectCommandOutput } from '@aws-sdk/client-s3';
+  generateSyncCriteria,
+} from '../s3.js';
 
 describe('getObjectKeyFromFilePath', () => {
   it('should generate the key', () => {
@@ -53,7 +54,7 @@ describe('shouldUploadFile', () => {
     fs.statSync(absoluteFilePath);
 
   it('should upload if no metadata is specified', async () => {
-    const criteria = 'ETag\nCache-Control';
+    const criteria = generateSyncCriteria('ETag\nCache-Control');
     const metadata = undefined;
     const shouldUpload = await shouldUploadFile(
       absoluteFilePath,
@@ -71,7 +72,7 @@ describe('shouldUploadFile', () => {
   });
 
   it('should upload if no criteria is specified', async () => {
-    const criteria = '';
+    const criteria = generateSyncCriteria('');
     const metadata = { $metadata: {} };
 
     const shouldUpload = await shouldUploadFile(
@@ -90,13 +91,13 @@ describe('shouldUploadFile', () => {
   });
 
   describe('matching criteria', () => {
-    const criteria = `
+    const criteria = generateSyncCriteria(`
       ETag
       ContentType
       CacheControl
       LastModified
       ContentLength
-    `;
+    `);
 
     const metadata: HeadObjectCommandOutput = {
       $metadata: {},

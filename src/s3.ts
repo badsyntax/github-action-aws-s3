@@ -167,29 +167,23 @@ export async function shouldUploadFile(
   partSizeInBytes: number,
   fileSizeInBytes: number,
   modifiedTime: Date,
-  syncStrategy: string,
+  syncCriteria: string[],
   metadata?: HeadObjectCommandOutput
 ) {
   if (!metadata) {
-    debug(`${s3Key}: No Metadata`);
+    debug(`Hit: ${s3Key}: No Metadata`);
     return true;
   }
 
-  const syncCriteria = syncStrategy
-    .trim()
-    .split('\n')
-    .map((criteria) => criteria.trim())
-    .filter((criteria) => !!criteria);
-
   if (!syncCriteria.length) {
-    debug(`${s3Key}: No sync criteria set`);
+    debug(`Hit: ${s3Key}: No sync criteria set`);
     return true;
   }
 
   if (syncCriteria.includes('ETag')) {
     const eTag = getETag(absoluteFilePath, multipart ? partSizeInBytes : 0);
     if (metadata.ETag !== eTag) {
-      debug(`${s3Key}: ETag differs`);
+      debug(`Hit: ${s3Key}: ETag differs`);
       return true;
     }
   }
@@ -198,7 +192,7 @@ export async function shouldUploadFile(
     syncCriteria.includes('ContentLength') &&
     metadata.ContentLength !== fileSizeInBytes
   ) {
-    debug(`${s3Key}: ContentLength differs`);
+    debug(`Hit: ${s3Key}: ContentLength differs`);
     return true;
   }
 
@@ -208,7 +202,7 @@ export async function shouldUploadFile(
     syncCriteria.includes('LastModified') &&
     modifiedTime.getTime() > (metadata.LastModified?.getTime() || 0)
   ) {
-    debug(`${s3Key}: LastModified differs`);
+    debug(`Hit: ${s3Key}: LastModified differs`);
     return true;
   }
 
@@ -216,7 +210,7 @@ export async function shouldUploadFile(
     syncCriteria.includes('CacheControl') &&
     metadata.CacheControl !== cacheControl
   ) {
-    debug(`${s3Key}: CacheControl differs`);
+    debug(`Hit: ${s3Key}: CacheControl differs`);
     return true;
   }
 
@@ -224,7 +218,7 @@ export async function shouldUploadFile(
     syncCriteria.includes('ContentType') &&
     metadata.ContentType !== contentType
   ) {
-    debug(`${s3Key}: ContentType differs`);
+    debug(`Hit: ${s3Key}: ContentType differs`);
     return true;
   }
 
@@ -255,6 +249,14 @@ function getFilesPlural(isPlural: boolean): string {
   return isPlural ? 'files' : 'file';
 }
 
+export function generateSyncCriteria(syncStrategy: string): string[] {
+  return syncStrategy
+    .trim()
+    .split('\n')
+    .map((criteria) => criteria.trim())
+    .filter((criteria) => !!criteria);
+}
+
 export async function syncFilesToS3(
   client: S3Client,
   s3BucketName: string,
@@ -280,6 +282,10 @@ export async function syncFilesToS3(
   const files = await getFilesFromSrcDir(srcDir, filesGlob);
 
   const filesToUpload: FileToUpload[] = [];
+
+  const syncCriteria = generateSyncCriteria(syncStrategy);
+
+  debug(`Sync criteria: ${syncCriteria.join(',')}`);
 
   await new AsyncQueue(
     concurrency,
@@ -310,7 +316,7 @@ export async function syncFilesToS3(
         multipartChunkBytes,
         fileSizeInBytes,
         mtime,
-        syncStrategy,
+        syncCriteria,
         metadata
       );
 
@@ -344,7 +350,7 @@ export async function syncFilesToS3(
   /**
    * Upload small files in parallel
    */
-  const uploadSmallFilesQueue = await new AsyncQueue(
+  const uploadSmallFilesQueue = new AsyncQueue(
     concurrency,
     smallFiles.map((file) => async () => {
       const startTime = process.hrtime();

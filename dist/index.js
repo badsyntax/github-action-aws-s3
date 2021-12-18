@@ -43409,20 +43409,7 @@ function logOutputParameters(syncedFiles) {
     (0,core.setOutput)('modified-keys', syncedFiles.join(','));
 }
 
-;// CONCATENATED MODULE: ./lib/defaults.js
-const defaultConcurrency = 6;
-const defaultLargeFileSizeInMb = 100; // 100mb
-const defaultMultipartUploadPartsInBytes = 10 * (1024 * 1024); // 10mb
-const defaultSyncStrategy = `
-  ETag
-  ContentType
-  CacheControl
-  LastModified
-  ContentLength
-`;
-
 ;// CONCATENATED MODULE: ./lib/inputs.js
-
 
 function getInputs() {
     const bucket = (0,core.getInput)('bucket', {
@@ -43461,29 +43448,22 @@ function getInputs() {
         required: false,
         trimWhitespace: true,
     });
-    const _multipartFileSizeMb = parseInt((0,core.getInput)('multipart-file-size-mb', {
-        required: false,
-        trimWhitespace: true,
-    }), 10);
-    const multipartFileSizeMb = isNaN(_multipartFileSizeMb)
-        ? defaultLargeFileSizeInMb
-        : _multipartFileSizeMb;
-    const _multipartChunkBytes = parseInt((0,core.getInput)('multipart-chunk-bytes', {
-        required: false,
-        trimWhitespace: true,
-    }), 10);
-    const multipartChunkBytes = isNaN(_multipartChunkBytes)
-        ? defaultMultipartUploadPartsInBytes
-        : _multipartFileSizeMb;
-    const _concurrency = parseInt((0,core.getInput)('concurrency', {
+    const multipartFileSizeMb = Number((0,core.getInput)('multipart-file-size-mb', {
         required: false,
         trimWhitespace: true,
     }));
-    const concurrency = isNaN(_concurrency) ? defaultConcurrency : _concurrency;
+    const multipartChunkBytes = Number((0,core.getInput)('multipart-chunk-bytes', {
+        required: false,
+        trimWhitespace: true,
+    }));
+    const concurrency = Number((0,core.getInput)('concurrency', {
+        required: false,
+        trimWhitespace: true,
+    }));
     const syncStrategy = (0,core.getInput)('sync-strategy', {
         required: false,
         trimWhitespace: true,
-    }) || defaultSyncStrategy;
+    });
     return {
         bucket,
         region,
@@ -43666,48 +43646,43 @@ function getETag(absoluteFilePath, partSizeInBytes) {
 async function isMultipartFile(fileSizeInBytes, partSizeInBytes) {
     return fileSizeInBytes >= partSizeInBytes;
 }
-async function shouldUploadFile(absoluteFilePath, s3Key, cacheControl, contentType, multipart, partSizeInBytes, fileSizeInBytes, modifiedTime, syncStrategy, metadata) {
+async function shouldUploadFile(absoluteFilePath, s3Key, cacheControl, contentType, multipart, partSizeInBytes, fileSizeInBytes, modifiedTime, syncCriteria, metadata) {
     var _a;
     if (!metadata) {
-        (0,core.debug)(`${s3Key}: No Metadata`);
+        (0,core.debug)(`Hit: ${s3Key}: No Metadata`);
         return true;
     }
-    const syncCriteria = syncStrategy
-        .trim()
-        .split('\n')
-        .map((criteria) => criteria.trim())
-        .filter((criteria) => !!criteria);
     if (!syncCriteria.length) {
-        (0,core.debug)(`${s3Key}: No sync criteria set`);
+        (0,core.debug)(`Hit: ${s3Key}: No sync criteria set`);
         return true;
     }
     if (syncCriteria.includes('ETag')) {
         const eTag = getETag(absoluteFilePath, multipart ? partSizeInBytes : 0);
         if (metadata.ETag !== eTag) {
-            (0,core.debug)(`${s3Key}: ETag differs`);
+            (0,core.debug)(`Hit: ${s3Key}: ETag differs`);
             return true;
         }
     }
     if (syncCriteria.includes('ContentLength') &&
         metadata.ContentLength !== fileSizeInBytes) {
-        (0,core.debug)(`${s3Key}: ContentLength differs`);
+        (0,core.debug)(`Hit: ${s3Key}: ContentLength differs`);
         return true;
     }
     // If the last modified time of the source (local) is newer
     // than the last modified time of the destination (s3)
     if (syncCriteria.includes('LastModified') &&
         modifiedTime.getTime() > (((_a = metadata.LastModified) === null || _a === void 0 ? void 0 : _a.getTime()) || 0)) {
-        (0,core.debug)(`${s3Key}: LastModified differs`);
+        (0,core.debug)(`Hit: ${s3Key}: LastModified differs`);
         return true;
     }
     if (syncCriteria.includes('CacheControl') &&
         metadata.CacheControl !== cacheControl) {
-        (0,core.debug)(`${s3Key}: CacheControl differs`);
+        (0,core.debug)(`Hit: ${s3Key}: CacheControl differs`);
         return true;
     }
     if (syncCriteria.includes('ContentType') &&
         metadata.ContentType !== contentType) {
-        (0,core.debug)(`${s3Key}: ContentType differs`);
+        (0,core.debug)(`Hit: ${s3Key}: ContentType differs`);
         return true;
     }
     return false;
@@ -43724,6 +43699,13 @@ async function getFilesFromSrcDir(srcDir, filesGlob) {
 function getFilesPlural(isPlural) {
     return isPlural ? 'files' : 'file';
 }
+function generateSyncCriteria(syncStrategy) {
+    return syncStrategy
+        .trim()
+        .split('\n')
+        .map((criteria) => criteria.trim())
+        .filter((criteria) => !!criteria);
+}
 async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, stripExtensionGlob, cacheControl, acl, multipartFileSizeMb, multipartChunkBytes, concurrency, syncStrategy) {
     const startTime = process.hrtime();
     if (!workspace) {
@@ -43733,6 +43715,8 @@ async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, st
     const rootDir = external_node_path_namespaceObject.join(workspace, srcDir);
     const files = await getFilesFromSrcDir(srcDir, filesGlob);
     const filesToUpload = [];
+    const syncCriteria = generateSyncCriteria(syncStrategy);
+    (0,core.debug)(`Sync criteria: ${syncCriteria.join(',')}`);
     await new AsyncQueue(concurrency, files.map((file) => async () => {
         const s3Key = getObjectKeyFromFilePath(rootDir, file, prefix, stripExtensionGlob);
         const extension = external_node_path_namespaceObject.extname(file).toLowerCase();
@@ -43740,7 +43724,7 @@ async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, st
         const { size: fileSizeInBytes, mtime } = await external_node_fs_namespaceObject.promises.stat(file);
         const multipart = await isMultipartFile(fileSizeInBytes, multipartFileSizeMb * 1024 * 1024);
         const metadata = await getObjectMetadata(client, s3BucketName, s3Key);
-        const shouldUpload = await shouldUploadFile(file, s3Key, cacheControl, contentType, multipart, multipartChunkBytes, fileSizeInBytes, mtime, syncStrategy, metadata);
+        const shouldUpload = await shouldUploadFile(file, s3Key, cacheControl, contentType, multipart, multipartChunkBytes, fileSizeInBytes, mtime, syncCriteria, metadata);
         if (shouldUpload) {
             filesToUpload.push({
                 absoluteFilePath: file,
@@ -43762,7 +43746,7 @@ async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, st
     /**
      * Upload small files in parallel
      */
-    const uploadSmallFilesQueue = await new AsyncQueue(concurrency, smallFiles.map((file) => async () => {
+    const uploadSmallFilesQueue = new AsyncQueue(concurrency, smallFiles.map((file) => async () => {
         const startTime = process.hrtime();
         await uploadFile(client, s3BucketName, file.key, file.absoluteFilePath, cacheControl, file.contentType, acl);
         const endTime = process.hrtime(startTime);
