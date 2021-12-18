@@ -15,7 +15,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import glob from '@actions/glob';
-import { info } from '@actions/core';
+import { debug, error, info } from '@actions/core';
 import minimatch from 'minimatch';
 
 import { workspace } from './github.js';
@@ -31,7 +31,7 @@ export async function getObjectMetadata(
   client: S3Client,
   s3BucketName: string,
   key: string
-): Promise<HeadObjectCommandOutput | void> {
+): Promise<HeadObjectCommandOutput | undefined> {
   try {
     return await client.send(
       new HeadObjectCommand({
@@ -40,6 +40,7 @@ export async function getObjectMetadata(
       })
     );
   } catch (e) {
+    error(`Unable to get HEAD Metadata for object key ${key}`);
     return undefined;
   }
 }
@@ -151,33 +152,77 @@ function getETag(absoluteFilePath: string, partSizeInBytes: number): string {
 }
 
 export async function isMultipartFile(
-  absoluteFilePath: string,
+  fileSizeInBytes: number,
   partSizeInBytes: number
 ) {
-  const { size: sizeInBytes } = await fs.promises.stat(absoluteFilePath);
-  return sizeInBytes >= partSizeInBytes;
+  return fileSizeInBytes >= partSizeInBytes;
 }
 
 export async function shouldUploadFile(
-  client: S3Client,
-  s3BucketName: string,
   absoluteFilePath: string,
-  key: string,
+  s3Key: string,
   cacheControl: string,
   contentType: string,
   multipart: boolean,
-  partSizeInBytes: number
+  partSizeInBytes: number,
+  fileSizeInBytes: number,
+  modifiedTime: Date,
+  syncCriteria: string[],
+  metadata?: HeadObjectCommandOutput
 ) {
-  const eTag = await getETag(absoluteFilePath, multipart ? partSizeInBytes : 0);
-  const metadata = await getObjectMetadata(client, s3BucketName, key);
+  if (!metadata) {
+    debug(`Hit: ${s3Key}: No Metadata`);
+    return true;
+  }
 
-  const shouldUploadFile =
-    !metadata ||
-    metadata.CacheControl !== cacheControl ||
-    metadata.ContentType !== contentType ||
-    metadata.ETag !== eTag;
+  if (!syncCriteria.length) {
+    debug(`Hit: ${s3Key}: No sync criteria set`);
+    return true;
+  }
 
-  return shouldUploadFile;
+  if (syncCriteria.includes('ETag')) {
+    const eTag = getETag(absoluteFilePath, multipart ? partSizeInBytes : 0);
+    if (metadata.ETag !== eTag) {
+      debug(`Hit: ${s3Key}: ETag differs`);
+      return true;
+    }
+  }
+
+  if (
+    syncCriteria.includes('ContentLength') &&
+    metadata.ContentLength !== fileSizeInBytes
+  ) {
+    debug(`Hit: ${s3Key}: ContentLength differs`);
+    return true;
+  }
+
+  // If the last modified time of the source (local) is newer
+  // than the last modified time of the destination (s3)
+  if (
+    syncCriteria.includes('LastModified') &&
+    modifiedTime.getTime() > (metadata.LastModified?.getTime() || 0)
+  ) {
+    debug(`Hit: ${s3Key}: LastModified differs`);
+    return true;
+  }
+
+  if (
+    syncCriteria.includes('CacheControl') &&
+    metadata.CacheControl !== cacheControl
+  ) {
+    debug(`Hit: ${s3Key}: CacheControl differs`);
+    return true;
+  }
+
+  if (
+    syncCriteria.includes('ContentType') &&
+    metadata.ContentType !== contentType
+  ) {
+    debug(`Hit: ${s3Key}: ContentType differs`);
+    return true;
+  }
+
+  return false;
 }
 
 export async function getFilesFromSrcDir(
@@ -200,6 +245,18 @@ type FileToUpload = {
   multipart: boolean;
 };
 
+function getFilesPlural(isPlural: boolean): string {
+  return isPlural ? 'files' : 'file';
+}
+
+export function generateSyncCriteria(syncStrategy: string): string[] {
+  return syncStrategy
+    .trim()
+    .split('\n')
+    .map((criteria) => criteria.trim())
+    .filter((criteria) => !!criteria);
+}
+
 export async function syncFilesToS3(
   client: S3Client,
   s3BucketName: string,
@@ -211,7 +268,8 @@ export async function syncFilesToS3(
   acl: PutObjectRequest['ACL'],
   multipartFileSizeMb: number,
   multipartChunkBytes: number,
-  concurrency: number
+  concurrency: number,
+  syncStrategy: string
 ): Promise<string[]> {
   const startTime = process.hrtime();
 
@@ -225,6 +283,10 @@ export async function syncFilesToS3(
 
   const filesToUpload: FileToUpload[] = [];
 
+  const syncCriteria = generateSyncCriteria(syncStrategy);
+
+  debug(`Sync criteria: ${syncCriteria.join(',')}`);
+
   await new AsyncQueue(
     concurrency,
     files.map((file) => async () => {
@@ -236,21 +298,26 @@ export async function syncFilesToS3(
       );
       const extension = path.extname(file).toLowerCase();
       const contentType = getContentTypeForExtension(extension);
+      const { size: fileSizeInBytes, mtime } = await fs.promises.stat(file);
 
       const multipart = await isMultipartFile(
-        file,
+        fileSizeInBytes,
         multipartFileSizeMb * 1024 * 1024
       );
 
+      const metadata = await getObjectMetadata(client, s3BucketName, s3Key);
+
       const shouldUpload = await shouldUploadFile(
-        client,
-        s3BucketName,
         file,
         s3Key,
         cacheControl,
         contentType,
         multipart,
-        multipartChunkBytes
+        multipartChunkBytes,
+        fileSizeInBytes,
+        mtime,
+        syncCriteria,
+        metadata
       );
 
       if (shouldUpload) {
@@ -268,14 +335,22 @@ export async function syncFilesToS3(
 
   const smallFiles = filesToUpload.filter((file) => !file.multipart);
   const multipartFiles = filesToUpload.filter((file) => file.multipart);
+  const totalFiles = smallFiles.length + multipartFiles.length;
 
-  info(`Found ${smallFiles.length} small files`);
-  info(`Found ${multipartFiles.length} multipart files`);
+  if (totalFiles > 0) {
+    info(
+      `Discovered ${totalFiles} ${getFilesPlural(
+        totalFiles !== 1
+      )} to upload (${smallFiles.length} small | ${
+        multipartFiles.length
+      } multipart), starting sync...`
+    );
+  }
 
   /**
    * Upload small files in parallel
    */
-  const uploadSmallFilesQueue = await new AsyncQueue(
+  const uploadSmallFilesQueue = new AsyncQueue(
     concurrency,
     smallFiles.map((file) => async () => {
       const startTime = process.hrtime();
@@ -300,11 +375,9 @@ export async function syncFilesToS3(
   await uploadSmallFilesQueue.process();
 
   /**
-   * Upload large files one at a time, as we're using multipart
-   * uploads to upload parts in parallel
+   * Upload multipart files one at a time
    */
-  const uploadMultipartFilesQueue = new AsyncQueue(
-    1,
+  await Promise.all(
     multipartFiles.map((file) => async () => {
       const startTime = process.hrtime();
       await uploadMultipartFile(
@@ -323,15 +396,13 @@ export async function syncFilesToS3(
     })
   );
 
-  await uploadMultipartFilesQueue.process();
-
   const endTime = process.hrtime(startTime);
 
-  info(`Synced ${smallFiles.length} small files`);
-  info(`Synced ${multipartFiles.length} multipart files`);
-  info(`✅ Synced total ${smallFiles.length + multipartFiles.length} files`);
-
-  info(`Execution time: ${getTimeString(endTime)}`);
+  info(
+    `✅ Synced ${totalFiles} ${getFilesPlural(totalFiles !== 1)} (${
+      smallFiles.length
+    } small | ${multipartFiles.length} multipart) in ${getTimeString(endTime)}`
+  );
 
   const getFileKey = ({ key }: FileToUpload) => key;
   return smallFiles.map(getFileKey).concat(multipartFiles.map(getFileKey));

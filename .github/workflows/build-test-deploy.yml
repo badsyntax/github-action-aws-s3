@@ -1,4 +1,4 @@
-name: 'Sync S3'
+name: 'Build, Test & Deploy'
 
 concurrency:
   group: prod_deploy
@@ -14,12 +14,48 @@ on:
       - master
 
 jobs:
-  deploy:
-    name: 'Sync'
+  test:
+    name: 'Build & Test'
     runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set Node.js 16.x
+        uses: actions/setup-node@v2.4.1
+        with:
+          node-version: 16.x
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint && npm run format-check
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Package
+        run: npm run package
+
+      - name: Compare the expected and actual dist/ directories
+        run: |
+          if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
+            echo "Detected uncommitted changes after build.  See status below:"
+            git diff
+            exit 1
+          fi
+
+  deploy:
+    name: 'Sync to S3'
+    runs-on: ubuntu-20.04
+    needs: test
     if: github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v2
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -43,7 +79,7 @@ jobs:
         with:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync'
-          src-dir: './out'
+          src-dir: './test-fixtures'
           files-glob: '**/*.html'
           aws-region: 'us-east-1'
           prefix: 'preview'
@@ -56,7 +92,7 @@ jobs:
         with:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync'
-          src-dir: './out'
+          src-dir: './test-fixtures'
           files-glob: 'css/**'
           aws-region: 'us-east-1'
           prefix: 'preview'

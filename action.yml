@@ -26,6 +26,13 @@ inputs:
     require: false
     default: ''
     description: "The prefix for the uploaded object. For example: 'custom/folder'"
+  sync-strategy:
+    required: false
+    default: |
+      ETag
+      ContentType
+      CacheControl
+    description: 'A newline-separated list of criteria to define the sync strategy. Criteria include: ETag, ContentType, CacheControl, LastModified, ContentLength'
   strip-extension-glob:
     require: false
     default: ''
@@ -33,7 +40,7 @@ inputs:
   cache-control:
     require: false
     default: ''
-    description: 'Cache-control headers. For example: public,max-age=31536000,immutable'
+    description: 'Cache-control header. For example: public,max-age=31536000,immutable'
   acl:
     required: false
     default: ''
