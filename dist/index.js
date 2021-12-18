@@ -43579,7 +43579,7 @@ async function getObjectMetadata(client, s3BucketName, key) {
         }));
     }
     catch (e) {
-        (0,core.error)(`Unable to get HEAD Metadata for object key ${key}`);
+        (0,core.debug)(`Unable to get HEAD Metadata for object key ${key} (likely it doesn't exist)`);
         return undefined;
     }
 }
