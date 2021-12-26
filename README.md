@@ -53,7 +53,7 @@ jobs:
         name: Sync HTML files to S3
         id: sync-html-s3
         with:
-          bucket: ${{ steps.update-stack.outputs.S3BucketName }}
+          bucket: 'my-bucket-us-east-1'
           aws-region: 'us-east-1'
           action: 'sync' # sync|clean
           src-dir: './out' # required only if action is sync
