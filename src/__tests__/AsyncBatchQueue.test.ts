@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { AsyncQueue } from '../AsyncQueue';
+import { AsyncBatchQueue } from '../AsyncBatchQueue';
 
 function delay(delayMs: number): Promise<void> {
   return new Promise((resolve) =>
@@ -7,10 +7,10 @@ function delay(delayMs: number): Promise<void> {
   );
 }
 
-describe('AsyncQueue', () => {
+describe('AsyncBatchQueue', () => {
   it('should process in batches', async () => {
     const callOrder: number[] = [];
-    const queue = new AsyncQueue(5, [
+    const queue = new AsyncBatchQueue(5, [
       // Batch 1
       () =>
         delay(20).then(() => {
