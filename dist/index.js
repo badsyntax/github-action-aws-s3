@@ -44720,18 +44720,11 @@ function generateSyncCriteria(syncStrategy) {
         .map((criteria) => criteria.trim())
         .filter((criteria) => !!criteria);
 }
-async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, stripExtensionGlob, cacheControl, acl, multipartFileSizeMb, multipartChunkBytes, concurrency, syncStrategy) {
-    const startTime = process.hrtime();
-    if (!workspace) {
-        throw new Error('GITHUB_WORKSPACE is not defined');
-    }
-    (0,core.info)(`Syncing files from ${srcDir} with ${concurrency} concurrent processes`);
+async function getFilesToUpload(client, s3BucketName, srcDir, filesGlob, prefix, stripExtensionGlob, cacheControl, multipartFileSizeMb, multipartChunkBytes, concurrency, syncCriteria, workspace) {
     const rootDir = external_node_path_namespaceObject.join(workspace, srcDir);
-    const files = await getFilesFromSrcDir(srcDir, filesGlob);
+    const localFiles = await getFilesFromSrcDir(srcDir, filesGlob);
     const filesToUpload = [];
-    const syncCriteria = generateSyncCriteria(syncStrategy);
-    (0,core.debug)(`Sync criteria: ${syncCriteria.join(',')}`);
-    await new AsyncBatchQueue(concurrency, files.map((file) => async () => {
+    return new AsyncBatchQueue(concurrency, localFiles.map((file) => async () => {
         const s3Key = getObjectKeyFromFilePath(rootDir, file, prefix, stripExtensionGlob);
         const extension = external_node_path_namespaceObject.extname(file).toLowerCase();
         const contentType = getContentTypeForExtension(extension);
@@ -44750,10 +44743,22 @@ async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, st
         else {
             (0,core.info)(`Skipped ${s3Key} (no-change)`);
         }
-    })).process();
+    }))
+        .process()
+        .then(() => filesToUpload);
+}
+async function syncFilesToS3(client, s3BucketName, srcDir, filesGlob, prefix, stripExtensionGlob, cacheControl, acl, multipartFileSizeMb, multipartChunkBytes, concurrency, syncStrategy) {
+    const startTime = process.hrtime();
+    if (!workspace) {
+        throw new Error('GITHUB_WORKSPACE is not defined');
+    }
+    (0,core.info)(`Syncing files from ${srcDir} with ${concurrency} concurrent processes`);
+    const syncCriteria = generateSyncCriteria(syncStrategy);
+    (0,core.debug)(`Sync criteria: ${syncCriteria.join(',')}`);
+    const filesToUpload = await getFilesToUpload(client, s3BucketName, srcDir, filesGlob, prefix, stripExtensionGlob, cacheControl, multipartFileSizeMb, multipartChunkBytes, concurrency, syncCriteria, workspace);
     const smallFiles = filesToUpload.filter((file) => !file.multipart);
     const multipartFiles = filesToUpload.filter((file) => file.multipart);
-    const totalFiles = smallFiles.length + multipartFiles.length;
+    const totalFiles = filesToUpload.length;
     if (totalFiles > 0) {
         (0,core.info)(`Discovered ${totalFiles} ${getFilesPlural(totalFiles !== 1)} to upload (${smallFiles.length} small | ${multipartFiles.length} multipart), starting sync...`);
     }

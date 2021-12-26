@@ -6,7 +6,7 @@
       "request": "launch",
       "name": "Debug Main",
       "program": "${workspaceFolder}/lib/main.js",
-      "preLaunchTask": "npm: build",
+      "preLaunchTask": "npm: build:ide",
       "outFiles": ["${workspaceFolder}/lib/**/*.js"],
       "outputCapture": "std",
       "env": {
