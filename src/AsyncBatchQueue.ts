@@ -1,6 +1,6 @@
 type OperationQueue = Array<() => Promise<unknown>>;
 
-export class AsyncQueue {
+export class AsyncBatchQueue {
   private operationQueue: OperationQueue = [];
   public inProgress = 0;
 

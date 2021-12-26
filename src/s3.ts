@@ -20,7 +20,7 @@ import { debug, info } from '@actions/core';
 import minimatch from 'minimatch';
 
 import { workspace } from './github.js';
-import { AsyncQueue } from './AsyncQueue.js';
+import { AsyncBatchQueue } from './AsyncBatchQueue.js';
 
 export type S3ObjectPrefix = string;
 
@@ -291,7 +291,7 @@ export async function syncFilesToS3(
 
   debug(`Sync criteria: ${syncCriteria.join(',')}`);
 
-  await new AsyncQueue(
+  await new AsyncBatchQueue(
     concurrency,
     files.map((file) => async () => {
       const s3Key = getObjectKeyFromFilePath(
@@ -354,7 +354,7 @@ export async function syncFilesToS3(
   /**
    * Upload small files in parallel
    */
-  const uploadSmallFilesQueue = new AsyncQueue(
+  const uploadSmallFilesQueue = new AsyncBatchQueue(
     concurrency,
     smallFiles.map((file) => async () => {
       const startTime = process.hrtime();
@@ -381,24 +381,22 @@ export async function syncFilesToS3(
   /**
    * Upload multipart files one at a time
    */
-  await Promise.all(
-    multipartFiles.map((file) => async () => {
-      const startTime = process.hrtime();
-      await uploadMultipartFile(
-        client,
-        s3BucketName,
-        file.key,
-        file.absoluteFilePath,
-        cacheControl,
-        file.contentType,
-        acl,
-        multipartChunkBytes,
-        concurrency
-      );
-      const endTime = process.hrtime(startTime);
-      info(`Synced ${file.key} (${getTimeString(endTime)})`);
-    })
-  );
+  for (const file of multipartFiles) {
+    const startTime = process.hrtime();
+    await uploadMultipartFile(
+      client,
+      s3BucketName,
+      file.key,
+      file.absoluteFilePath,
+      cacheControl,
+      file.contentType,
+      acl,
+      multipartChunkBytes,
+      concurrency
+    );
+    const endTime = process.hrtime(startTime);
+    info(`Synced ${file.key} (${getTimeString(endTime)})`);
+  }
 
   const endTime = process.hrtime(startTime);
 
