@@ -2,6 +2,31 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Main",
+      "program": "${workspaceFolder}/lib/main.js",
+      "preLaunchTask": "npm: build:ide",
+      "outFiles": ["${workspaceFolder}/lib/**/*.js"],
+      "outputCapture": "std",
+      "env": {
+        "INPUT_BUCKET": "badsyntax-github-action-example-aws-s3-us-east-1",
+        "INPUT_ACTION": "sync",
+        "INPUT_FILES-GLOB": "**/*.css",
+        "INPUT_SRC-DIR": "./test-fixtures",
+        "INPUT_AWS-REGION": "us-east-1",
+        "INPUT_PREFIX": "preview",
+        "INPUT_CONCURRENCY": "6",
+        "INPUT_MULTIPART-FILE-SIZE-MB": "100",
+        "INPUT_SYNC-STRATEGY": "ETag",
+        "INPUT_CACHE-CONTROL": "public,max-age=31536000,immutable",
+        "GITHUB_EVENT_NAME": "pull_request",
+        "GITHUB_ACTION": "synchronize",
+        "GITHUB_REPOSITORY": "badsyntax/github-action-aws-s3",
+        "GITHUB_WORKSPACE": "${workspaceFolder}"
+      }
+    },
+    {
       "name": "Debug All Jest Tests",
       "request": "launch",
       "runtimeArgs": ["run-script", "test"],
