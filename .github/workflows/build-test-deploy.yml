@@ -63,7 +63,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - uses: badsyntax/github-action-aws-cloudformation@v0.0.6
+      - uses: badsyntax/github-action-aws-cloudformation@v1.0.0
         name: Update CloudFormation Stack
         id: update-stack
         with:
