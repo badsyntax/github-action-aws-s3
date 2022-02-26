@@ -1,9 +1,5 @@
 name: 'Build, Test & Deploy'
 
-concurrency:
-  group: prod_deploy
-  cancel-in-progress: false
-
 on:
   repository_dispatch:
   workflow_dispatch:
@@ -49,6 +45,9 @@ jobs:
           fi
 
   deploy:
+    concurrency:
+      group: prod_deploy
+      cancel-in-progress: false
     name: 'Sync to S3'
     runs-on: ubuntu-20.04
     needs: test
