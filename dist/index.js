@@ -43042,6 +43042,17 @@ function populateMaps (extensions, types) {
 
 /***/ }),
 
+/***/ 4917:
+/***/ ((module) => {
+
+const isWindows = typeof process === 'object' &&
+  process &&
+  process.platform === 'win32'
+module.exports = isWindows ? { sep: '\\' } : { sep: '/' }
+
+
+/***/ }),
+
 /***/ 3973:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -43058,9 +43069,7 @@ const minimatch = module.exports = (p, pattern, options = {}) => {
 
 module.exports = minimatch
 
-const path = (() => { try { return __nccwpck_require__(1017) } catch (e) {}})() || {
-  sep: '/'
-}
+const path = __nccwpck_require__(4917)
 minimatch.sep = path.sep
 
 const GLOBSTAR = Symbol('globstar **')
