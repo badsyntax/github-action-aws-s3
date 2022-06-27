@@ -49,7 +49,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - uses: badsyntax/github-action-aws-s3@v0.0.1
+      - uses: badsyntax/github-action-aws-s3@v1
         name: Sync HTML files to S3
         id: sync-html-s3
         with:
