@@ -28,18 +28,18 @@ export async function run(): Promise<void> {
         inputs.multipartFileSizeMb,
         inputs.multipartChunkBytes,
         inputs.concurrency,
-        inputs.syncStrategy
+        inputs.syncStrategy,
       );
       logOutputParameters(syncedFiles);
     } else if (inputs.action === 'clean') {
       const cleanedFiles = await emptyS3Directory(
         s3Client,
         inputs.bucket,
-        inputs.prefix
+        inputs.prefix,
       );
       logOutputParameters(cleanedFiles);
       info(
-        `Cleaned ${cleanedFiles.length} objects from s3://${inputs.bucket}/${inputs.prefix}`
+        `Cleaned ${cleanedFiles.length} objects from s3://${inputs.bucket}/${inputs.prefix}`,
       );
     } else {
       throw new Error(`Unknown action: ${inputs.action}`);

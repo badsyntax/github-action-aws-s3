@@ -6,7 +6,7 @@ export class AsyncBatchQueue {
 
   public constructor(
     private readonly concurrency: number,
-    queue: OperationQueue
+    queue: OperationQueue,
   ) {
     this.operationQueue = queue.slice();
   }
@@ -14,7 +14,7 @@ export class AsyncBatchQueue {
   public async process(): Promise<void> {
     const amount = Math.min(
       this.concurrency - this.inProgress,
-      this.operationQueue.length
+      this.operationQueue.length,
     );
     if (amount === 0) {
       return;
@@ -26,8 +26,8 @@ export class AsyncBatchQueue {
         operation().then(() => {
           this.inProgress--;
           return this.process();
-        })
-      )
+        }),
+      ),
     );
   }
 }

@@ -1,8 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import util from 'node:util';
 import mime from 'mime-types';
-import glob from 'glob';
+import { glob } from 'glob';
 import { generateETag } from 's3-etag';
 import {
   DeleteObjectsCommand,
@@ -17,10 +16,14 @@ import {
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { debug, info } from '@actions/core';
-import minimatch from 'minimatch';
+import { minimatch } from 'minimatch';
 
 import { workspace } from './github.js';
 import { AsyncBatchQueue } from './AsyncBatchQueue.js';
+
+// Add missing mime types that aren't supported by the 'mime-types' package
+mime.extensions['image/vnd.radiance'] = ['hdr'];
+mime.types['hdr'] = 'image/vnd.radiance';
 
 export type S3ObjectPrefix = string;
 
@@ -31,18 +34,18 @@ function getTimeString(time: [number, number]) {
 export async function getObjectMetadata(
   client: S3Client,
   s3BucketName: string,
-  key: string
+  key: string,
 ): Promise<HeadObjectCommandOutput | undefined> {
   try {
     return await client.send(
       new HeadObjectCommand({
         Bucket: s3BucketName,
         Key: key,
-      })
+      }),
     );
   } catch (e) {
     debug(
-      `Unable to get HEAD Metadata for object key ${key} (likely it does not exist)`
+      `Unable to get HEAD Metadata for object key ${key} (likely it does not exist)`,
     );
     return undefined;
   }
@@ -52,7 +55,7 @@ export function getObjectKeyFromFilePath(
   rootDir: string,
   absoluteFilePath: string,
   prefix: S3ObjectPrefix | string,
-  stripExtensionGlob: string
+  stripExtensionGlob: string,
 ): string {
   const key = path.join(prefix, path.relative(rootDir, absoluteFilePath));
   const { root, dir, name, ext } = path.parse(key);
@@ -81,7 +84,7 @@ async function uploadFile(
   absoluteFilePath: string,
   cacheControl: string,
   contentType: string,
-  acl: PutObjectRequest['ACL']
+  acl: PutObjectRequest['ACL'],
 ): Promise<PutObjectCommandOutput> {
   return client.send(
     new PutObjectCommand({
@@ -91,7 +94,7 @@ async function uploadFile(
       ContentType: contentType,
       ACL: acl,
       Body: fs.createReadStream(absoluteFilePath),
-    })
+    }),
   );
 }
 
@@ -104,7 +107,7 @@ async function uploadMultipartFile(
   contentType: string,
   acl: PutObjectRequest['ACL'],
   partSizeInBytes: number,
-  concurrency: number
+  concurrency: number,
 ): Promise<ServiceOutputTypes> {
   const startTime = process.hrtime();
 
@@ -128,7 +131,7 @@ async function uploadMultipartFile(
   info(
     `Started multipart upload for ${key} using ${
       partSizeInBytes / 1024 / 1024
-    }MB chunks and ${concurrency} concurrent processes, please wait...`
+    }MB chunks and ${concurrency} concurrent processes, please wait...`,
   );
 
   upload.on('httpUploadProgress', (progress) => {
@@ -141,8 +144,8 @@ async function uploadMultipartFile(
       `${key}: loaded ${percentLoaded}% (${progress.loaded} of ${
         progress.total
       }) (part ${progress.part}) (total time elapsed: ${getTimeString(
-        endTime
-      )})`
+        endTime,
+      )})`,
     );
   });
 
@@ -156,7 +159,7 @@ function getETag(absoluteFilePath: string, partSizeInBytes: number): string {
 
 export async function isMultipartFile(
   fileSizeInBytes: number,
-  partSizeInBytes: number
+  partSizeInBytes: number,
 ) {
   return fileSizeInBytes >= partSizeInBytes;
 }
@@ -171,7 +174,7 @@ export async function shouldUploadFile(
   fileSizeInBytes: number,
   modifiedTime: Date,
   syncCriteria: string[],
-  metadata?: HeadObjectCommandOutput
+  metadata?: HeadObjectCommandOutput,
 ) {
   if (!metadata) {
     debug(`Hit: ${s3Key}: No Metadata`);
@@ -230,12 +233,12 @@ export async function shouldUploadFile(
 
 export async function getFilesFromSrcDir(
   srcDir: string,
-  filesGlob: string
+  filesGlob: string,
 ): Promise<string[]> {
   if (srcDir.trim() === '' || filesGlob.trim() === '') {
     throw new Error('srcDir and filesGlob must not be empty');
   }
-  return util.promisify(glob)(filesGlob, {
+  return glob(filesGlob, {
     cwd: srcDir,
     absolute: true,
     nodir: true,
@@ -273,7 +276,7 @@ async function getFilesToUpload(
   multipartChunkBytes: number,
   concurrency: number,
   syncCriteria: string[],
-  workspace: string
+  workspace: string,
 ) {
   const rootDir = path.join(workspace, srcDir);
   const localFiles = await getFilesFromSrcDir(srcDir, filesGlob);
@@ -286,7 +289,7 @@ async function getFilesToUpload(
         rootDir,
         file,
         prefix,
-        stripExtensionGlob
+        stripExtensionGlob,
       );
       const extension = path.extname(file).toLowerCase();
       const contentType = getContentTypeForExtension(extension);
@@ -294,7 +297,7 @@ async function getFilesToUpload(
 
       const multipart = await isMultipartFile(
         fileSizeInBytes,
-        multipartFileSizeMb * 1024 * 1024
+        multipartFileSizeMb * 1024 * 1024,
       );
 
       const metadata = await getObjectMetadata(client, s3BucketName, s3Key);
@@ -309,7 +312,7 @@ async function getFilesToUpload(
         fileSizeInBytes,
         mtime,
         syncCriteria,
-        metadata
+        metadata,
       );
 
       if (shouldUpload) {
@@ -322,7 +325,7 @@ async function getFilesToUpload(
       } else {
         info(`Skipped ${s3Key} (no-change)`);
       }
-    })
+    }),
   )
     .process()
     .then(() => filesToUpload);
@@ -340,7 +343,7 @@ export async function syncFilesToS3(
   multipartFileSizeMb: number,
   multipartChunkBytes: number,
   concurrency: number,
-  syncStrategy: string
+  syncStrategy: string,
 ): Promise<string[]> {
   const startTime = process.hrtime();
 
@@ -365,7 +368,7 @@ export async function syncFilesToS3(
     multipartChunkBytes,
     concurrency,
     syncCriteria,
-    workspace
+    workspace,
   );
 
   const smallFiles = filesToUpload.filter((file) => !file.multipart);
@@ -375,10 +378,10 @@ export async function syncFilesToS3(
   if (totalFiles > 0) {
     info(
       `Discovered ${totalFiles} ${getFilesPlural(
-        totalFiles !== 1
+        totalFiles !== 1,
       )} to upload (${smallFiles.length} small | ${
         multipartFiles.length
-      } multipart), starting sync...`
+      } multipart), starting sync...`,
     );
   }
 
@@ -396,15 +399,15 @@ export async function syncFilesToS3(
         file.absoluteFilePath,
         cacheControl,
         file.contentType,
-        acl
+        acl,
       );
       const endTime = process.hrtime(startTime);
       info(
         `Synced ${file.key} (${getTimeString(endTime)}) (${
           uploadSmallFilesQueue.inProgress
-        } ops in progress)`
+        } ops in progress)`,
       );
-    })
+    }),
   );
 
   await uploadSmallFilesQueue.process();
@@ -423,7 +426,7 @@ export async function syncFilesToS3(
       file.contentType,
       acl,
       multipartChunkBytes,
-      concurrency
+      concurrency,
     );
     const endTime = process.hrtime(startTime);
     info(`Synced ${file.key} (${getTimeString(endTime)})`);
@@ -434,7 +437,7 @@ export async function syncFilesToS3(
   info(
     `✅ Synced ${totalFiles} ${getFilesPlural(totalFiles !== 1)} (${
       smallFiles.length
-    } small | ${multipartFiles.length} multipart) in ${getTimeString(endTime)}`
+    } small | ${multipartFiles.length} multipart) in ${getTimeString(endTime)}`,
   );
 
   const getFileKey = ({ key }: FileToUpload) => key;
@@ -445,13 +448,13 @@ export async function emptyS3Directory(
   client: S3Client,
   s3BucketName: string,
   prefix: string,
-  initialObjectsCleaned: string[] = []
+  initialObjectsCleaned: string[] = [],
 ): Promise<string[]> {
   const objects = await client.send(
     new ListObjectsV2Command({
       Bucket: s3BucketName,
       Prefix: prefix,
-    })
+    }),
   );
 
   if (!objects.Contents?.length) {
@@ -464,7 +467,7 @@ export async function emptyS3Directory(
     new DeleteObjectsCommand({
       Bucket: s3BucketName,
       Delete: { Objects: objectKeys },
-    })
+    }),
   );
 
   const totalObjectsCleaned = initialObjectsCleaned
@@ -476,7 +479,7 @@ export async function emptyS3Directory(
       client,
       s3BucketName,
       prefix,
-      totalObjectsCleaned
+      totalObjectsCleaned,
     );
   }
 

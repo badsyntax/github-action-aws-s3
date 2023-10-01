@@ -9,13 +9,23 @@ import {
   generateSyncCriteria,
 } from '../s3.js';
 
+function sorter(a: string, b: string) {
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  return 0;
+}
+
 describe('getObjectKeyFromFilePath', () => {
   it('should generate the key', () => {
     const key = getObjectKeyFromFilePath(
       '/src/root',
       '/src/root/blog.html',
       '',
-      ''
+      '',
     );
     expect(key).toBe('blog.html');
   });
@@ -25,7 +35,7 @@ describe('getObjectKeyFromFilePath', () => {
       '/src/root',
       '/src/root/blog.html',
       '',
-      '**/*.html'
+      '**/*.html',
     );
     expect(keyWithoutExtension).toBe('blog');
   });
@@ -33,16 +43,19 @@ describe('getObjectKeyFromFilePath', () => {
   it('should find files using srcDir and filesGlob', async () => {
     const srcDir = './test-fixtures';
     const rootDir = path.join(path.resolve(process.cwd()), srcDir);
-    const files = await getFilesFromSrcDir(srcDir, '**/*.html');
+    const files = (await getFilesFromSrcDir(srcDir, '**/*.html')).sort(sorter);
     expect(files).toEqual([`${rootDir}/blog.html`, `${rootDir}/index.html`]);
   });
 
   it('should find files using srcDir and filesGlob with brace expansion', async () => {
     const srcDir = './test-fixtures';
     const rootDir = path.join(path.resolve(process.cwd()), srcDir);
-    const files = await getFilesFromSrcDir(srcDir, '{css,site-assets}/**/*');
+    const files = (
+      await getFilesFromSrcDir(srcDir, '{css,site-assets,img}/**/*')
+    ).sort(sorter);
     expect(files).toEqual([
       `${rootDir}/css/styles.css`,
+      `${rootDir}/img/sample.hdr`,
       `${rootDir}/site-assets/script.js`,
     ]);
   });
@@ -53,7 +66,7 @@ describe('shouldUploadFile', () => {
   const absoluteFilePath = path.join(
     path.resolve(process.cwd()),
     srcDir,
-    'index.html'
+    'index.html',
   );
   const s3Key = 'index.html';
   const cacheControl = 'no-cache';
@@ -76,7 +89,7 @@ describe('shouldUploadFile', () => {
       contentLength,
       lastModified,
       criteria,
-      metadata
+      metadata,
     );
     expect(shouldUpload).toBe(true);
   });
@@ -95,7 +108,7 @@ describe('shouldUploadFile', () => {
       contentLength,
       lastModified,
       criteria,
-      metadata
+      metadata,
     );
     expect(shouldUpload).toBe(true);
   });
@@ -130,8 +143,8 @@ describe('shouldUploadFile', () => {
           contentLength,
           lastModified,
           criteria,
-          metadata
-        )
+          metadata,
+        ),
       ).toBe(false);
     });
 
@@ -150,8 +163,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             ContentType: 'text/xml',
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
 
@@ -170,8 +183,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             CacheControl: 'public',
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
 
@@ -190,8 +203,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             ContentLength: 2,
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
 
@@ -212,8 +225,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             LastModified: lastModifiedRemote,
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
 
@@ -232,8 +245,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             ETag: '"1234"',
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
   });
