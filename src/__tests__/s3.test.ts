@@ -15,7 +15,7 @@ describe('getObjectKeyFromFilePath', () => {
       '/src/root',
       '/src/root/blog.html',
       '',
-      ''
+      '',
     );
     expect(key).toBe('blog.html');
   });
@@ -25,7 +25,7 @@ describe('getObjectKeyFromFilePath', () => {
       '/src/root',
       '/src/root/blog.html',
       '',
-      '**/*.html'
+      '**/*.html',
     );
     expect(keyWithoutExtension).toBe('blog');
   });
@@ -53,7 +53,7 @@ describe('shouldUploadFile', () => {
   const absoluteFilePath = path.join(
     path.resolve(process.cwd()),
     srcDir,
-    'index.html'
+    'index.html',
   );
   const s3Key = 'index.html';
   const cacheControl = 'no-cache';
@@ -76,7 +76,7 @@ describe('shouldUploadFile', () => {
       contentLength,
       lastModified,
       criteria,
-      metadata
+      metadata,
     );
     expect(shouldUpload).toBe(true);
   });
@@ -95,7 +95,7 @@ describe('shouldUploadFile', () => {
       contentLength,
       lastModified,
       criteria,
-      metadata
+      metadata,
     );
     expect(shouldUpload).toBe(true);
   });
@@ -130,8 +130,8 @@ describe('shouldUploadFile', () => {
           contentLength,
           lastModified,
           criteria,
-          metadata
-        )
+          metadata,
+        ),
       ).toBe(false);
     });
 
@@ -150,8 +150,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             ContentType: 'text/xml',
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
 
@@ -170,8 +170,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             CacheControl: 'public',
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
 
@@ -190,8 +190,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             ContentLength: 2,
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
 
@@ -212,8 +212,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             LastModified: lastModifiedRemote,
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
 
@@ -232,8 +232,8 @@ describe('shouldUploadFile', () => {
           {
             ...metadata,
             ETag: '"1234"',
-          }
-        )
+          },
+        ),
       ).toBe(true);
     });
   });

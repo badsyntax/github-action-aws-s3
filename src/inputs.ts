@@ -50,21 +50,21 @@ export function getInputs() {
     getInput('multipart-file-size-mb', {
       required: false,
       trimWhitespace: true,
-    })
+    }),
   );
 
   const multipartChunkBytes = Number(
     getInput('multipart-chunk-bytes', {
       required: false,
       trimWhitespace: true,
-    })
+    }),
   );
 
   const concurrency = Number(
     getInput('concurrency', {
       required: false,
       trimWhitespace: true,
-    })
+    }),
   );
 
   const syncStrategy = getInput('sync-strategy', {

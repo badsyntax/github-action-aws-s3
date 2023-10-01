@@ -3,7 +3,7 @@ import { AsyncBatchQueue } from '../AsyncBatchQueue';
 
 function delay(delayMs: number): Promise<void> {
   return new Promise((resolve) =>
-    setTimeout(() => resolve(undefined), delayMs)
+    setTimeout(() => resolve(undefined), delayMs),
   );
 }
 
