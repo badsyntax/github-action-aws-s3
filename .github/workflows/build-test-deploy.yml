@@ -92,7 +92,7 @@ jobs:
           bucket: ${{ steps.update-stack.outputs.S3BucketName }}
           action: 'sync'
           src-dir: './test-fixtures'
-          files-glob: '{site-assets,css}/**/*'
+          files-glob: '{site-assets,css,img}/**/*'
           aws-region: 'us-east-1'
           prefix: 'preview'
           cache-control: 'public,max-age=31536000,immutable'
