@@ -9,6 +9,16 @@ import {
   generateSyncCriteria,
 } from '../s3.js';
 
+function sorter(a: string, b: string) {
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  return 0;
+}
+
 describe('getObjectKeyFromFilePath', () => {
   it('should generate the key', () => {
     const key = getObjectKeyFromFilePath(
@@ -33,16 +43,19 @@ describe('getObjectKeyFromFilePath', () => {
   it('should find files using srcDir and filesGlob', async () => {
     const srcDir = './test-fixtures';
     const rootDir = path.join(path.resolve(process.cwd()), srcDir);
-    const files = await getFilesFromSrcDir(srcDir, '**/*.html');
+    const files = (await getFilesFromSrcDir(srcDir, '**/*.html')).sort(sorter);
     expect(files).toEqual([`${rootDir}/blog.html`, `${rootDir}/index.html`]);
   });
 
   it('should find files using srcDir and filesGlob with brace expansion', async () => {
     const srcDir = './test-fixtures';
     const rootDir = path.join(path.resolve(process.cwd()), srcDir);
-    const files = await getFilesFromSrcDir(srcDir, '{css,site-assets}/**/*');
+    const files = (
+      await getFilesFromSrcDir(srcDir, '{css,site-assets,img}/**/*')
+    ).sort(sorter);
     expect(files).toEqual([
       `${rootDir}/css/styles.css`,
+      `${rootDir}/img/sample.hdr`,
       `${rootDir}/site-assets/script.js`,
     ]);
   });

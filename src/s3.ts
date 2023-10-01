@@ -1,8 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import util from 'node:util';
 import mime from 'mime-types';
-import glob from 'glob';
+import { glob } from 'glob';
 import { generateETag } from 's3-etag';
 import {
   DeleteObjectsCommand,
@@ -17,7 +16,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { debug, info } from '@actions/core';
-import minimatch from 'minimatch';
+import { minimatch } from 'minimatch';
 
 import { workspace } from './github.js';
 import { AsyncBatchQueue } from './AsyncBatchQueue.js';
@@ -235,7 +234,7 @@ export async function getFilesFromSrcDir(
   if (srcDir.trim() === '' || filesGlob.trim() === '') {
     throw new Error('srcDir and filesGlob must not be empty');
   }
-  return util.promisify(glob)(filesGlob, {
+  return glob(filesGlob, {
     cwd: srcDir,
     absolute: true,
     nodir: true,
