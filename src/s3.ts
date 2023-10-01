@@ -21,6 +21,10 @@ import { minimatch } from 'minimatch';
 import { workspace } from './github.js';
 import { AsyncBatchQueue } from './AsyncBatchQueue.js';
 
+// Add missing mime types that aren't supported by the 'mime-types' package
+mime.extensions['image/vnd.radiance'] = ['hdr'];
+mime.types['hdr'] = 'image/vnd.radiance';
+
 export type S3ObjectPrefix = string;
 
 function getTimeString(time: [number, number]) {

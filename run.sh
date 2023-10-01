@@ -2,7 +2,7 @@
 
 env 'INPUT_BUCKET=badsyntax-github-action-example-aws-s3-us-east-1' \
     env 'INPUT_ACTION=sync' \
-    env 'INPUT_FILES-GLOB=**/*.css' \
+    env 'INPUT_FILES-GLOB={site-assets,css,img}/**/*' \
     env 'INPUT_SRC-DIR=./test-fixtures' \
     env 'INPUT_AWS-REGION=us-east-1' \
     env 'INPUT_PREFIX=preview' \
