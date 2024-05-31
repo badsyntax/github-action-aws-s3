@@ -42,7 +42,7 @@
     "glob": "^10.3.10",
     "mime-types": "^2.1.35",
     "minimatch": "^9.0.3",
-    "s3-etag": "^1.0.4"
+    "s3-etag": "^1.0.5"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
