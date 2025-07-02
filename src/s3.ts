@@ -24,6 +24,10 @@ import { AsyncBatchQueue } from './AsyncBatchQueue.js';
 // Add missing mime types that aren't supported by the 'mime-types' package
 mime.extensions['image/vnd.radiance'] = ['hdr'];
 mime.types['hdr'] = 'image/vnd.radiance';
+mime.extensions['application/octet-stream'] = ['pbf'];
+mime.types['pbf'] = 'application/octet-stream';
+mime.extensions['text/plain'] = ['pdb'];
+mime.types['cnf'] = 'text/plain';
 
 export type S3ObjectPrefix = string;
 

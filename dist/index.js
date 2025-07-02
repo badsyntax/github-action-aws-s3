@@ -41974,7 +41974,7 @@ const workspace = process.env.GITHUB_WORKSPACE;
 function logOutputParameters(syncedFiles) {
     (0,core.setOutput)('modified-keys', syncedFiles.join(','));
 }
-
+//# sourceMappingURL=github.js.map
 ;// CONCATENATED MODULE: ./lib/inputs.js
 
 function getInputs() {
@@ -42046,7 +42046,7 @@ function getInputs() {
         syncStrategy,
     };
 }
-
+//# sourceMappingURL=inputs.js.map
 ;// CONCATENATED MODULE: external "node:path"
 const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
 ;// CONCATENATED MODULE: external "node:fs"
@@ -49611,7 +49611,7 @@ class AsyncBatchQueue {
         })));
     }
 }
-
+//# sourceMappingURL=AsyncBatchQueue.js.map
 ;// CONCATENATED MODULE: ./lib/s3.js
 
 
@@ -49627,6 +49627,10 @@ class AsyncBatchQueue {
 // Add missing mime types that aren't supported by the 'mime-types' package
 mime_types.extensions["image/vnd.radiance"] = ['hdr'];
 mime_types.types.hdr = 'image/vnd.radiance';
+mime_types.extensions["application/octet-stream"] = ['pbf'];
+mime_types.types.pbf = 'application/octet-stream';
+mime_types.extensions["text/plain"] = ['pdb'];
+mime_types.types.cnf = 'text/plain';
 function getTimeString(time) {
     return `${time[0]}s:${(time[1] / 1000000).toFixed(0)}ms`;
 }
@@ -49854,7 +49858,7 @@ async function emptyS3Directory(client, s3BucketName, prefix, initialObjectsClea
     }
     return totalObjectsCleaned;
 }
-
+//# sourceMappingURL=s3.js.map
 ;// CONCATENATED MODULE: ./lib/main.js
 
 
@@ -49891,7 +49895,7 @@ async function run() {
     }
 }
 void run();
-
+//# sourceMappingURL=main.js.map
 })();
 
 var __webpack_exports__run = __webpack_exports__.K;
